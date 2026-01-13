@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mutual Fund Portfolio Advisor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .chat-message {
+            margin-bottom: 20px;
+            display: flex;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 15px 20px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        .user-message {
+            justify-content: flex-end;
+        }
+
+        .user-message .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot-message {
+            justify-content: flex-start;
+        }
+
+        .bot-message .message-bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-container {
+            padding: 20px 30px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        #messageInput {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #messageInput:focus {
+            border-color: #667eea;
+        }
+
+        #sendButton {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #sendButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #sendButton:active {
+            transform: translateY(0);
+        }
+
+        #sendButton:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 18px;
+            border: 1px solid #e0e0e0;
+            width: fit-content;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .optimization-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #667eea;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .optimization-result h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .fund-weight {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .fund-weight .fund-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .fund-weight .fund-weight-value {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .reset-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .reset-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .header {
+            position: relative;
+        }
+
+        /* Scrollbar styling */
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: #764ba2;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .message-bubble {
+                max-width: 85%;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="reset-button" onclick="resetChat()">Reset Chat</button>
+            <h1>💰 Mutual Fund Portfolio Advisor</h1>
+            <p>Your AI-powered investment advisor for building diversified portfolios</p>
+        </div>
+        
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-message bot-message">
+                <div class="message-bubble">
+                    👋 Hello! I'm your AI portfolio advisor. I'll help you build a diversified mutual fund portfolio tailored to your risk profile and goals.
+                    <br><br>
+                    What are you trying to achieve with your investments? (e.g., growth, stability, tax-saving, etc.)
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-container">
+            <div class="input-wrapper">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Type your message here..."
+                    onkeypress="handleKeyPress(event)"
+                >
+            </div>
+            <button id="sendButton" onclick="sendMessage()">Send</button>
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function addMessage(content, isUser) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${isUser ? 'user-message' : 'bot-message'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.innerHTML = content;
+            
+            messageDiv.appendChild(bubble);
+            chatContainer.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showTyping() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            typingIndicator.style.display = 'block';
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.appendChild(typingIndicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function hideTyping() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            typingIndicator.style.display = 'none';
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Disable input
+            input.disabled = true;
+            sendButton.disabled = true;
+            
+            // Add user message
+            addMessage(message, true);
+            input.value = '';
+            
+            // Show typing indicator
+            showTyping();
+            
+            try {
+                // Send message to backend
+                const response = await fetch(`${API_BASE}/api/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                hideTyping();
+                
+                if (data.error) {
+                    addMessage(`❌ Error: ${data.error}`, false);
+                } else {
+                    addMessage(data.response, false);
+                    
+                    // Check if optimization result is already available (from agentic system)
+                    if (data.optimization_result && data.optimization_result.weights) {
+                        const optResult = data.optimization_result;
+                        const state = data.state;
+                        
+                        // Display optimization results
+                        let resultHtml = `
+                            <div class="optimization-result">
+                                <h3>📊 Recommended Portfolio Allocation</h3>
+                                <p style="margin-bottom: 15px; color: #666;">
+                                    Based on your <strong>${state.primary_risk_bucket}</strong> risk profile (${state.sub_risk_bucket}), here's your optimized portfolio:
+                                </p>
+                        `;
+                        
+                        // Sort by weight (descending)
+                        const sortedWeights = Object.entries(optResult.weights)
+                            .sort((a, b) => b[1] - a[1]);
+                        
+                        for (const [fundName, weight] of sortedWeights) {
+                            resultHtml += `
+                                <div class="fund-weight">
+                                    <span class="fund-name">${fundName}</span>
+                                    <span class="fund-weight-value">${weight}%</span>
+                                </div>
+                            `;
+                        }
+                        
+                        resultHtml += `
+                                <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                                    💡 <strong>Next Steps:</strong> You can rebalance quarterly, adjust geography exposure, or modify your risk preferences anytime.
+                                </p>
+                            </div>
+                        `;
+                        
+                        addMessage(resultHtml, false);
+                    } else {
+                        // Fallback: Check if we should trigger optimization manually
+                        const botMsgLower = data.response.toLowerCase();
+                        const shouldOptimize = botMsgLower.includes('optimize') || 
+                                             botMsgLower.includes('generate') || 
+                                             botMsgLower.includes('recommendation') ||
+                                             botMsgLower.includes('here are') ||
+                                             botMsgLower.includes('portfolio') ||
+                                             (botMsgLower.includes('look right') && botMsgLower.includes('yes'));
+                        
+                        const userMsgLower = message.toLowerCase();
+                        const userWantsOptimize = userMsgLower.includes('yes') || 
+                                                  userMsgLower.includes('optimize') ||
+                                                  userMsgLower.includes('generate') ||
+                                                  userMsgLower.includes('proceed');
+                        
+                        const state = data.state;
+                        if ((shouldOptimize || userWantsOptimize) && state && state.currency && state.primary_risk_bucket) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            
+                            const payloadResponse = await fetch(`${API_BASE}/api/get-payload`);
+                            const payload = await payloadResponse.json();
+                            
+                            addMessage('🔄 Optimizing your portfolio... This may take a few seconds.', false);
+                            
+                            const optResponse = await fetch(`${API_BASE}/api/optimize`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(payload)
+                            });
+                            
+                            const optResult = await optResponse.json();
+                            
+                            if (optResult.error) {
+                                addMessage(`⚠️ Optimization error: ${optResult.error}`, false);
+                            } else if (optResult.weights) {
+                                let resultHtml = `
+                                    <div class="optimization-result">
+                                        <h3>📊 Recommended Portfolio Allocation</h3>
+                                        <p style="margin-bottom: 15px; color: #666;">
+                                            Based on your <strong>${payload.primary_risk_bucket}</strong> risk profile (${payload.sub_risk_bucket}), here's your optimized portfolio:
+                                        </p>
+                                `;
+                                
+                                const sortedWeights = Object.entries(optResult.weights)
+                                    .sort((a, b) => b[1] - a[1]);
+                                
+                                for (const [fundName, weight] of sortedWeights) {
+                                    resultHtml += `
+                                        <div class="fund-weight">
+                                            <span class="fund-name">${fundName}</span>
+                                            <span class="fund-weight-value">${weight}%</span>
+                                        </div>
+                                    `;
+                                }
+                                
+                                resultHtml += `
+                                        <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                                            💡 <strong>Next Steps:</strong> You can rebalance quarterly, adjust geography exposure, or modify your risk preferences anytime.
+                                        </p>
+                                    </div>
+                                `;
+                                
+                                addMessage(resultHtml, false);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                hideTyping();
+                addMessage(`❌ Error: ${error.message}`, false);
+            } finally {
+                // Re-enable input
+                input.disabled = false;
+                sendButton.disabled = false;
+                input.focus();
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function resetChat() {
+            if (confirm('Are you sure you want to reset the conversation?')) {
+                try {
+                    await fetch(`${API_BASE}/api/reset`, { method: 'POST' });
+                    document.getElementById('chatContainer').innerHTML = `
+                        <div class="chat-message bot-message">
+                            <div class="message-bubble">
+                                👋 Hello! I'm your AI portfolio advisor. I'll help you build a diversified mutual fund portfolio tailored to your risk profile and goals.
+                                <br><br>
+                                What are you trying to achieve with your investments? (e.g., growth, stability, tax-saving, etc.)
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    alert('Error resetting chat: ' + error.message);
+                }
+            }
+        }
+
+        // Focus input on load
+        document.getElementById('messageInput').focus();
+    </script>
+</body>
+</html>
+

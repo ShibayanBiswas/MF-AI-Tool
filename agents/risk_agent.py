@@ -238,15 +238,17 @@ CRITICAL AUTOMATIC PROGRESSION RULES:
                     # Set default fund counts
                     self._set_default_fund_counts(context, primary_risk)
                     
-                    # If tax saving was mentioned and currency is INR, set tax_saver_target_pct to 50%
-                    # and adjust fund counts to include 5 tax saver funds (50% of 10 funds)
+                    # If currency is INR, check if tax saving was mentioned
                     if context.get("currency") == "INR":
-                        # Check conversation history for tax saving mentions
+                        # Check conversation history for tax saving mentions - ONLY check USER messages, not bot responses
                         tax_saving_keywords = ["tax saving", "tax-saving", "tax benefits", "elss", "section 80c", "tax saver", "tax deduction"]
-                        conversation_text = " ".join([msg.get("content", "") for msg in context.get("conversation_history", [])]).lower()
+                        # Only check user messages to avoid false positives from bot's explanatory text
+                        user_messages = [msg.get("content", "") for msg in context.get("conversation_history", []) if msg.get("role") == "user"]
+                        conversation_text = " ".join(user_messages).lower()
                         mentions_tax_saving = any(keyword in conversation_text for keyword in tax_saving_keywords)
                         
                         if mentions_tax_saving:
+                            # Tax saving case: set tax_saver_target_pct to 50% and adjust fund counts to include 5 tax saver funds
                             context["tax_saver_target_pct"] = 50.0
                             # Adjust fund counts: 5 tax saver funds out of 10 total
                             # So: 5 tax saver + 5 others (distributed across other categories)
@@ -294,6 +296,14 @@ CRITICAL AUTOMATIC PROGRESSION RULES:
                                 if non_tax_cats:
                                     largest_cat = max(non_tax_cats.items(), key=lambda x: x[1])
                                     context["fund_counts"][largest_cat[0]] += (10 - total)
+                        else:
+                            # INR non-tax-saver case: use normal allocation based on risk profile
+                            # Default fund counts already set above (tax_saver = 0)
+                            # Ensure tax_saver_target_pct is not set
+                            context["tax_saver_target_pct"] = None
+                            # Ensure tax_saver fund count is 0 (should already be 0 from defaults, but make explicit)
+                            context["fund_counts"]["tax_saver"] = 0
+                            # Subrisk query will be included automatically in the workflow (after fund_selection)
                     
                     # Save to database
                     if self.db:

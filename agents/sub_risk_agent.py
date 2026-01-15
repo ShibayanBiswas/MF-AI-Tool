@@ -2,6 +2,7 @@
 Sub-Risk Refinement Agent - Handles sub-risk bucket refinement and volatility/drawdown targets.
 """
 import json
+import re
 from typing import Dict, List, Any, Optional
 from database import Database
 from .base import BaseAgent
@@ -127,8 +128,45 @@ CRITICAL:
         is_confirmation = user_lower in ["continue", "proceed", "yes", "okay", "ok", "sure", "go ahead", "let's do it", ""] or not user_message
         
         # If it's just a confirmation, show the options table and ask user to choose
+        # CRITICAL: Do NOT call LLM or make tool calls - just show options and wait for explicit user choice
         if is_confirmation:
             return self._show_sub_risk_options(context, primary_risk)
+        
+        # Check if user provided a valid sub-risk choice (like "medium-low", "balanced", "medium-high", or a percentage)
+        # If not a clear choice, treat as confirmation and show options again
+        sub_risk_indicators = [
+            # Medium risk options
+            "medium-low", "medium_low", "medium low", "medium low", "lower medium",
+            "medium-medium", "medium_medium", "medium medium", "balanced", "true balanced",
+            "medium-high", "medium_high", "medium high", "upper medium",
+            # Low risk options
+            "low-low", "low_low", "low low", "very conservative", "maximum safety",
+            "low-medium", "low_medium", "low medium", "conservative", "true conservative",
+            "low-high", "low_high", "low high", "upper low",
+            # High risk options
+            "high-low", "high_low", "high low", "growth but cautious", "growth with some safety",
+            "high-medium", "high_medium", "high medium", "aggressive", "aggressive growth",
+            "high-high", "high_high", "high high", "very aggressive", "maximum"
+        ]
+        
+        # Check if message contains a percentage (like "20%", "25%", "30%", "30% drop", "handle 30%")
+        # Use regex to find percentage patterns
+        percentage_pattern = r'\d+\s*%'
+        has_percentage = bool(re.search(percentage_pattern, user_message)) if user_message else False
+        
+        # Check if message contains a sub-risk indicator
+        has_sub_risk_choice = any(indicator in user_lower for indicator in sub_risk_indicators)
+        
+        # If user message doesn't contain a clear sub-risk choice or percentage, show options again
+        if not has_sub_risk_choice and not has_percentage and user_message:
+            # User might be asking a question or giving unclear response - show options again with clarification
+            response = "I need you to choose one of the sub-risk options. Let me show them again:\n\n"
+            options_response = self._show_sub_risk_options(context, primary_risk)
+            return {
+                "response": response + options_response["response"],
+                "updated_context": context,
+                "next_agent": None  # Stay in sub-risk agent
+            }
         
         # Build messages with enhanced context and detailed system prompt
         detailed_prompt = """TITLE: Mutual Fund Weighted Portfolio Recommendation Chatbot (Risk-Inferred + Volatility Sub-Buckets)
@@ -145,6 +183,9 @@ IMPORTANT BUSINESS RULES:
    - Within each primary risk (LOW/MEDIUM/HIGH), there are 3 sub-levels
    - Each sub-level has different volatility/drawdown tolerance
    - This fine-tunes the portfolio to match user's exact comfort level
+   - **CRITICAL: You MUST wait for the user to explicitly choose one of the 3 sub-risk options or provide a specific volatility/drawdown percentage**
+   - **DO NOT automatically select a default sub-risk - the user must make an explicit choice**
+   - **If the user just says "yes", "proceed", "continue", etc., you should NOT call the refine_sub_risk tool - instead, remind them to choose one of the options**
 
 3) Volatility vs Drawdown:
    - Volatility: How much portfolio value swings up and down (expressed as %)
@@ -152,10 +193,12 @@ IMPORTANT BUSINESS RULES:
    - If user provides BOTH volatility and drawdown, extract BOTH values and set both in the tool call
    - If user provides only one, use that one
    - CRITICAL: When user says "volatility X% and drawdown Y%", you MUST extract both values and pass both to the tool
+   - **CRITICAL: Only call refine_sub_risk tool when user explicitly chooses an option (like "Medium-Low", "Balanced", "Medium-High") or provides a specific percentage**
 
 Keep questions short. Never overwhelm with more than 2 questions in one message.
 Always explain what volatility and drawdown mean with examples.
-Provide detailed, informative responses explaining what each sub-risk option means."""
+Provide detailed, informative responses explaining what each sub-risk option means.
+**NEVER auto-select a sub-risk - always wait for explicit user choice.**"""
         
         messages = self._build_messages_with_context(context, additional_system_prompts=[detailed_prompt])
         messages.append({"role": "user", "content": user_message})

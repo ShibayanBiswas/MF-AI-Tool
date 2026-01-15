@@ -308,18 +308,33 @@ Do subjective questioning and keep interacting with the user naturally."""
         """Set default fund counts based on risk profile."""
         if primary_risk == "LOW":
             context["fund_counts"] = {
-                "debt": 1, "large_cap": 2, "mid_cap": 1,
-                "small_cap": 0, "balanced": 1, "tax_saver": 0
+                # Low risk: more stability (debt, large-cap), limited small-cap
+                "debt": 3,
+                "large_cap": 3,
+                "mid_cap": 2,
+                "small_cap": 1,
+                "balanced": 1,
+                "tax_saver": 0
             }
         elif primary_risk == "MEDIUM":
             context["fund_counts"] = {
-                "debt": 1, "large_cap": 1, "mid_cap": 1,
-                "small_cap": 1, "balanced": 1, "tax_saver": 0
+                # Medium risk: balanced mix across categories
+                "debt": 2,
+                "large_cap": 2,
+                "mid_cap": 2,
+                "small_cap": 2,
+                "balanced": 2,
+                "tax_saver": 0
             }
         else:  # HIGH
             context["fund_counts"] = {
-                "debt": 0, "large_cap": 1, "mid_cap": 2,
-                "small_cap": 2, "balanced": 1, "tax_saver": 0
+                # High risk: more growth (mid/small-cap), minimal debt
+                "debt": 1,
+                "large_cap": 2,
+                "mid_cap": 3,
+                "small_cap": 3,
+                "balanced": 1,
+                "tax_saver": 0
             }
     
 

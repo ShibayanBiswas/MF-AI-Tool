@@ -281,9 +281,10 @@ CRITICAL:
         response += "\n---\n\n"
         response += "## 🚀 Ready for Portfolio Optimization?\n\n"
         response += "Great! I've selected the **actual fund names** for your portfolio based on:\n"
-        response += "- Your risk profile (Medium)\n"
-        response += "- Currency (USD)\n"
-        response += "- Geography preferences (USA, India, Japan, Europe, UK, China)\n"
+        response += f"- Your risk profile ({primary_risk})\n"
+        response += f"- Currency ({currency})\n"
+        if currency == "USD" and context.get("geography_constraints"):
+            response += "- Your geography preferences (country allocation you confirmed)\n"
         response += "- Fund performance metrics (returns, volatility, drawdown)\n\n"
         response += "**What Happens Next?**\n"
         response += "1. **Sub-Risk Refinement**: I'll refine your risk profile to get your exact volatility/drawdown tolerance\n"
@@ -324,20 +325,43 @@ CRITICAL:
         
         # For USD, distribute funds across geographies based on geography_constraints
         if currency == "USD" and geography_constraints and total_funds_needed > 0:
-            # Calculate how many funds should come from each geography
-            geography_fund_allocation = {}
+            # Step 1: compute raw fractional allocations per geography
+            raw_allocations = {}
             for geo, pct in geography_constraints.items():
                 if pct and pct > 0:
-                    # Calculate number of funds for this geography (rounded)
-                    num_funds = max(1, round(total_funds_needed * pct / 100))
-                    geography_fund_allocation[geo] = num_funds
+                    raw = total_funds_needed * (pct / 100.0)
+                    raw_allocations[geo] = raw
             
-            # Normalize to ensure we don't exceed total
+            # Step 2: take floors and track remainders
+            geography_fund_allocation = {}
+            remainders = []
+            allocated = 0
+            for geo, raw in raw_allocations.items():
+                base = int(raw)
+                geography_fund_allocation[geo] = base
+                allocated += base
+                remainders.append((geo, raw - base))
+            
+            # Step 3: distribute remaining funds based on largest remainders
+            remaining = max(0, total_funds_needed - allocated)
+            if remaining > 0 and remainders:
+                remainders.sort(key=lambda x: x[1], reverse=True)
+                idx = 0
+                while remaining > 0:
+                    geo = remainders[idx][0]
+                    geography_fund_allocation[geo] = geography_fund_allocation.get(geo, 0) + 1
+                    remaining -= 1
+                    idx = (idx + 1) % len(remainders)
+            
+            # Final safety: if we somehow overshot, trim from smallest allocations
             total_allocated = sum(geography_fund_allocation.values())
-            if total_allocated != total_funds_needed:
-                # Adjust the largest geography to match total
-                largest_geo = max(geography_fund_allocation.items(), key=lambda x: x[1])[0]
-                geography_fund_allocation[largest_geo] += (total_funds_needed - total_allocated)
+            if total_allocated > total_funds_needed:
+                for geo, _ in sorted(geography_fund_allocation.items(), key=lambda x: x[1]):
+                    if total_allocated <= total_funds_needed:
+                        break
+                    if geography_fund_allocation[geo] > 0:
+                        geography_fund_allocation[geo] -= 1
+                        total_allocated -= 1
             
             # Distribute funds by category across geographies
             for category, count in fund_counts.items():

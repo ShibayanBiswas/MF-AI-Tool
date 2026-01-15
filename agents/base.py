@@ -120,7 +120,7 @@ class BaseAgent:
         
         return "\n".join(summary_parts) if summary_parts else "No context set yet."
     
-    def _call_llm(self, messages: List[Dict], tools: List[Dict] = None, tool_choice: str = "auto", model: str = "gpt-4o-mini", max_tokens: int = 3000) -> Dict:
+    def _call_llm(self, messages: List[Dict], tools: List[Dict] = None, tool_choice: str = "auto", model: str = "gpt-4.1-mini", max_tokens: int = 3000) -> Dict:
         """Enhanced LLM call with better context handling."""
         params = {
             "model": model,

@@ -181,8 +181,22 @@ Provide detailed, informative responses explaining what each sub-risk option mea
                     volatility = context.get('volatility_target_pct', 25)
                     drawdown = context.get('drawdown_target_pct')
                     
+                    # Friendlier label for sub-risk style
+                    friendly_names = {
+                        "LOW_LOW": "Very Conservative (Maximum Safety)",
+                        "LOW_MEDIUM": "Conservative (Low Risk)",
+                        "LOW_HIGH": "Low Risk with Some Growth Tilt",
+                        "MEDIUM_LOW": "Balanced but Cautious",
+                        "MEDIUM_MEDIUM": "Balanced Growth Style",
+                        "MEDIUM_HIGH": "Growth-Oriented Balanced",
+                        "HIGH_LOW": "Growth with Some Safety",
+                        "HIGH_MEDIUM": "Aggressive Growth",
+                        "HIGH_HIGH": "Very Aggressive / High Growth"
+                    }
+                    friendly_label = friendly_names.get(sub_risk, sub_risk.replace('_', ' ').title())
+                    
                     response = f"## 🎯 Sub-Risk Profile Refined\n\n"
-                    response += f"**Sub-Risk Level:** {sub_risk.replace('_', ' ').title()}\n\n"
+                    response += f"**Sub-Risk Style:** {friendly_label} (`{sub_risk}`)\n\n"
                     
                     response += "**What This Means:**\n"
                     if "HIGH" in sub_risk:

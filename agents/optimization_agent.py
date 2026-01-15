@@ -158,6 +158,11 @@ Provide detailed, informative responses explaining portfolio characteristics."""
         payload = self._build_optimization_payload(context)
         
         try:
+            # Add suggested_funds to payload if available
+            suggested_funds = context.get("suggested_funds", {})
+            if suggested_funds and len(suggested_funds) > 0:
+                payload["suggested_funds"] = suggested_funds
+            
             result = risk_folio(**payload)
             
             if result.get("error"):

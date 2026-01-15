@@ -27,7 +27,8 @@ def risk_folio(
     fund_counts={},
     asset_split_targets={},
     geography_constraints={},
-    tax_saver_target_pct=None
+    tax_saver_target_pct=None,
+    suggested_funds=None
 ):
     """
     Optimize portfolio using scipy.optimize (mean-variance optimization).
@@ -52,6 +53,8 @@ def risk_folio(
         Geography weights (only for USD)
     tax_saver_target_pct : float, optional
         Tax saver percentage (only for INR)
+    suggested_funds : dict, optional
+        Pre-selected funds by category (if provided, uses these instead of re-selecting)
     
     Returns:
     --------
@@ -61,58 +64,79 @@ def risk_folio(
     # Initialize fund data
     df = initialize_fund_data()
     
-    # Select funds based on currency
-    available_funds = df[df["currency"] == currency].copy()
-    
-    # Filter by geography if USD
-    if currency == "USD" and geography_constraints:
-        # Get funds from specified geographies
-        geographies = list(geography_constraints.keys())
-        available_funds = available_funds[available_funds["geography"].isin(geographies)]
-    
-    # Select funds based on fund_counts
     selected_funds = []
     
-    for category, count in fund_counts.items():
-        # Ensure count is not None and is a valid integer
-        if count is None:
-            continue
-        try:
-            count = int(count)
-        except (ValueError, TypeError):
-            continue
-        if count > 0:
-            category_funds = available_funds[available_funds["category"] == category]
-            
-            # For USD, consider geography constraints when selecting
-            if currency == "USD" and geography_constraints:
-                # Try to distribute across geographies
-                geo_funds = {}
-                for geo in geography_constraints.keys():
-                    geo_funds[geo] = category_funds[category_funds["geography"] == geo]
+    # If suggested_funds is provided, use those exact funds
+    if suggested_funds and len(suggested_funds) > 0:
+        # Convert suggested_funds format to the format expected by optimization
+        for category, funds_list in suggested_funds.items():
+            for fund_info in funds_list:
+                fund_name = fund_info.get("name")
+                if fund_name:
+                    # Strip whitespace and find the fund in the database to get full details including returns_series
+                    fund_name_clean = str(fund_name).strip()
+                    fund_row = df[df["name"].str.strip() == fund_name_clean]
+                    if len(fund_row) > 0:
+                        fund_dict = fund_row.iloc[0].to_dict()
+                        selected_funds.append(fund_dict)
+                    else:
+                        # Try case-insensitive match
+                        fund_row = df[df["name"].str.strip().str.lower() == fund_name_clean.lower()]
+                        if len(fund_row) > 0:
+                            fund_dict = fund_row.iloc[0].to_dict()
+                            selected_funds.append(fund_dict)
+    else:
+        # Fallback to original selection logic if suggested_funds not provided
+        # Select funds based on currency
+        available_funds = df[df["currency"] == currency].copy()
+        
+        # Filter by geography if USD
+        if currency == "USD" and geography_constraints:
+            # Get funds from specified geographies
+            geographies = list(geography_constraints.keys())
+            available_funds = available_funds[available_funds["geography"].isin(geographies)]
+        
+        # Select funds based on fund_counts
+        for category, count in fund_counts.items():
+            # Ensure count is not None and is a valid integer
+            if count is None:
+                continue
+            try:
+                count = int(count)
+            except (ValueError, TypeError):
+                continue
+            if count > 0:
+                category_funds = available_funds[available_funds["category"] == category]
                 
-                # Select funds proportionally, prioritizing highest returns
-                selected = []
-                for geo, weight in geography_constraints.items():
-                    geo_count = max(1, int(count * weight / 100))
-                    if len(geo_funds[geo]) > 0:
-                        # Sort by returns and select top funds
-                        geo_funds_sorted = geo_funds[geo].sort_values('returns', ascending=False)
-                        selected.extend(geo_funds_sorted.head(geo_count).to_dict('records'))
+                # For USD, consider geography constraints when selecting
+                if currency == "USD" and geography_constraints:
+                    # Try to distribute across geographies
+                    geo_funds = {}
+                    for geo in geography_constraints.keys():
+                        geo_funds[geo] = category_funds[category_funds["geography"] == geo]
+                    
+                    # Select funds proportionally, prioritizing highest returns
+                    selected = []
+                    for geo, weight in geography_constraints.items():
+                        geo_count = max(1, int(count * weight / 100))
+                        if len(geo_funds[geo]) > 0:
+                            # Sort by returns and select top funds
+                            geo_funds_sorted = geo_funds[geo].sort_values('returns', ascending=False)
+                            selected.extend(geo_funds_sorted.head(geo_count).to_dict('records'))
+                    
+                    # If not enough, fill from any geography (sorted by returns)
+                    while len(selected) < count and len(category_funds) > len(selected):
+                        remaining = category_funds[~category_funds["name"].isin([f["name"] for f in selected])]
+                        if len(remaining) > 0:
+                            remaining_sorted = remaining.sort_values('returns', ascending=False)
+                            selected.append(remaining_sorted.iloc[0].to_dict())
+                else:
+                    # For INR or no geography constraints, select top funds by returns
+                    # Sort by returns (descending) and select top funds
+                    category_funds_sorted = category_funds.sort_values('returns', ascending=False)
+                    selected = category_funds_sorted.head(count).to_dict('records')
                 
-                # If not enough, fill from any geography (sorted by returns)
-                while len(selected) < count and len(category_funds) > len(selected):
-                    remaining = category_funds[~category_funds["name"].isin([f["name"] for f in selected])]
-                    if len(remaining) > 0:
-                        remaining_sorted = remaining.sort_values('returns', ascending=False)
-                        selected.append(remaining_sorted.iloc[0].to_dict())
-            else:
-                # For INR or no geography constraints, select top funds by returns
-                # Sort by returns (descending) and select top funds
-                category_funds_sorted = category_funds.sort_values('returns', ascending=False)
-                selected = category_funds_sorted.head(count).to_dict('records')
-            
-            selected_funds.extend(selected[:count])
+                selected_funds.extend(selected[:count])
     
     if len(selected_funds) == 0:
         return {"error": "No funds found matching criteria"}

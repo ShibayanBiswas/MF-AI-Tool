@@ -308,15 +308,21 @@ CRITICAL AUTOMATIC PROGRESSION RULES:
                     risk_explanations = {
                         "LOW": {
                             "description": "**Low Risk Profile** - Conservative Investor",
-                            "explanation": "You prefer stability and are comfortable with lower returns in exchange for less volatility. Based on your risk profile, here's the fund structure:"
+                            "explanation": "You prefer stability and are comfortable with lower returns in exchange for less volatility. Based on your risk profile, here's the fund structure:",
+                            "volatility_range": "~10-15%",
+                            "sub_levels": "Within Low Risk, there are 3 sub-levels: Very Conservative (approx. 10%), Conservative (approx. 15%), and Low Risk with Growth Tilt (approx. 20%)"
                         },
                         "MEDIUM": {
                             "description": "**Medium Risk Profile** - Balanced Investor",
-                            "explanation": "You're comfortable with moderate volatility for balanced growth. Based on your risk profile, here's the fund structure:"
+                            "explanation": "You're comfortable with moderate volatility for balanced growth. Based on your risk profile, here's the fund structure:",
+                            "volatility_range": "~15-25%",
+                            "sub_levels": "Within Medium Risk, there are 3 sub-levels: Medium-Low (approx. 20%), Balanced (approx. 25%), and Medium-High (approx. 30%)"
                         },
                         "HIGH": {
                             "description": "**High Risk Profile** - Aggressive Investor",
-                            "explanation": "You're comfortable with higher volatility for potentially higher returns. Based on your risk profile, here's the fund structure:"
+                            "explanation": "You're comfortable with higher volatility for potentially higher returns. Based on your risk profile, here's the fund structure:",
+                            "volatility_range": "~25-40%",
+                            "sub_levels": "Within High Risk, there are 3 sub-levels: Growth with Some Safety (approx. 30%), Aggressive Growth (approx. 40%), and Very Aggressive (approx. 50%)"
                         }
                     }
                     
@@ -324,6 +330,8 @@ CRITICAL AUTOMATIC PROGRESSION RULES:
                     response = f"## 🎯 Risk Assessment Complete\n\n"
                     response += f"{risk_info.get('description', '')}\n\n"
                     response += f"{risk_info.get('explanation', '')}\n\n"
+                    response += f"### 📊 Volatility Range: {risk_info.get('volatility_range', 'N/A')}\n\n"
+                    response += f"💡 {risk_info.get('sub_levels', '')}\n\n"
                     
                     # Show fund COUNTS in a table (NOT percentages)
                     response += "## 📊 Portfolio Fund Structure (Number of Funds by Category)\n\n"
@@ -350,15 +358,18 @@ CRITICAL AUTOMATIC PROGRESSION RULES:
                     response += "| Characteristic | Details |\n"
                     response += "|----------------|---------|\n"
                     if primary_risk == "LOW":
-                        response += "| 📉 Volatility | ~10-15% |\n"
+                        response += "| 📉 Volatility Range | ~10-15% (Low Risk) |\n"
+                        response += "| 📊 Sub-Risk Levels | 3 levels: Very Conservative (approx. 10%), Conservative (approx. 15%), Low Risk with Growth Tilt (approx. 20%) |\n"
                         response += "| 💰 Expected Returns | ~8-12% annually |\n"
                         response += "| 👥 Suitable For | Conservative investors, near retirement, short-term goals |\n\n"
                     elif primary_risk == "MEDIUM":
-                        response += "| 📉 Volatility | ~15-25% |\n"
+                        response += "| 📉 Volatility Range | ~15-25% (Medium Risk) |\n"
+                        response += "| 📊 Sub-Risk Levels | 3 levels: Medium-Low (approx. 20%), Balanced (approx. 25%), Medium-High (approx. 30%) |\n"
                         response += "| 💰 Expected Returns | ~12-15% annually |\n"
                         response += "| 👥 Suitable For | Most investors seeking balanced risk-return |\n\n"
                     else:  # HIGH
-                        response += "| 📉 Volatility | ~25-40% |\n"
+                        response += "| 📉 Volatility Range | ~25-40% (High Risk) |\n"
+                        response += "| 📊 Sub-Risk Levels | 3 levels: Growth with Some Safety (approx. 30%), Aggressive Growth (approx. 40%), Very Aggressive (approx. 50%) |\n"
                         response += "| 💰 Expected Returns | ~15-20% annually (but can be volatile) |\n"
                         response += "| 👥 Suitable For | Long-term investors (10+ years), comfortable with market swings |\n\n"
                     

@@ -122,6 +122,14 @@ CRITICAL:
         
         primary_risk = context.get("primary_risk_bucket", "MEDIUM")
         
+        # Check if user message is just a confirmation/continuation - if so, show options and ask
+        user_lower = user_message.lower().strip() if user_message else ""
+        is_confirmation = user_lower in ["continue", "proceed", "yes", "okay", "ok", "sure", "go ahead", "let's do it", ""] or not user_message
+        
+        # If it's just a confirmation, show the options table and ask user to choose
+        if is_confirmation:
+            return self._show_sub_risk_options(context, primary_risk)
+        
         # Build messages with enhanced context and detailed system prompt
         detailed_prompt = """TITLE: Mutual Fund Weighted Portfolio Recommendation Chatbot (Risk-Inferred + Volatility Sub-Buckets)
 
@@ -247,11 +255,57 @@ Provide detailed, informative responses explaining what each sub-risk option mea
                         "next_agent": "optimization"
                     }
         
-        # If no tool call, return LLM response
+        # If no tool call, return LLM response (user might be asking a question or clarifying)
         bot_message = message.content
         return {
             "response": bot_message,
             "updated_context": context,
-            "next_agent": None  # Stay in sub-risk agent
+            "next_agent": None  # Stay in sub-risk agent until user makes a choice
+        }
+    
+    def _show_sub_risk_options(self, context: Dict, primary_risk: str) -> Dict[str, Any]:
+        """Show sub-risk options table and ask user to choose."""
+        response = "Great! Let's refine your sub-risk bucket to align with your preferences.\n\n"
+        
+        # Explain volatility and drawdown first
+        response += "### 💡 Understanding Volatility & Drawdown\n\n"
+        response += "Before we proceed, let me explain:\n\n"
+        response += "| Term | What It Means | Example |\n"
+        response += "|------|---------------|---------|\n"
+        response += "| **Volatility** | How much your portfolio value swings up and down | 25% volatility means your portfolio could swing ±25% in value |\n"
+        response += "| **Drawdown** | Maximum peak-to-bottom temporary drop you might experience | If your portfolio goes from ₹100 to ₹75, that's a 25% drawdown |\n\n"
+        
+        # Show sub-risk options based on primary risk
+        if primary_risk == "HIGH":
+            response += "### 🚀 Within 'High Risk', there are 3 sub-styles to fine-tune your portfolio:\n\n"
+            response += "| Style | Volatility | Risk Level | Focus | Suitable For |\n"
+            response += "|-------|------------|------------|-------|--------------|\n"
+            response += "| **1) Very Aggressive** | **approx. 50%** | Maximum | High-growth small-cap & mid-cap | Long-term (10+ years), comfortable with swings |\n"
+            response += "| **2) Aggressive** | **approx. 40%** | High | Mix of mid-cap, small-cap, some large-cap | Growth-oriented (7-10 years) |\n"
+            response += "| **3) Growth but Cautious** | **approx. 30%** | High with caution | More large-cap, selective mid/small-cap | Growth investors wanting some stability |\n\n"
+            response += "**Which style feels closest to you?** Or tell me your specific max drawdown percentage (e.g., 'I can handle up to 35% drop').\n"
+            
+        elif primary_risk == "MEDIUM":
+            response += "### ⚖️ Within 'Medium Risk', there are 3 sub-styles:\n\n"
+            response += "| Style | Volatility | Risk Level | Asset Mix | Suitable For |\n"
+            response += "|-------|------------|------------|-----------|--------------|\n"
+            response += "| **1) Medium-High** | **approx. 30%** | Upper medium | 60-70% equity, less debt | Growth with safety net |\n"
+            response += "| **2) Balanced** | **approx. 25%** | True balanced | 50-50 or 60-40 equity/debt | Most investors seeking balance |\n"
+            response += "| **3) Medium-Low** | **approx. 20%** | Lower medium | 40-50% debt, conservative equity | Conservative investors wanting growth |\n\n"
+            response += "**Which style feels closest to you?** Or tell me your max drawdown percentage.\n"
+            
+        else:  # LOW
+            response += "### 🛡️ Within 'Low Risk', there are 3 sub-styles:\n\n"
+            response += "| Style | Volatility | Risk Level | Asset Mix | Suitable For |\n"
+            response += "|-------|------------|------------|-----------|--------------|\n"
+            response += "| **1) Low-High** | **approx. 20%** | Upper low | More large-cap, some mid-cap | Conservative wanting equity exposure |\n"
+            response += "| **2) Conservative** | **approx. 15%** | True conservative | Heavy debt, selective large-cap | Risk-averse, near retirement |\n"
+            response += "| **3) Very Conservative** | **approx. 10%** | Maximum safety | Primarily debt, minimal equity | Very risk-averse, short-term goals |\n\n"
+            response += "**Which style feels closest to you?** Or tell me your max drawdown percentage.\n"
+        
+        return {
+            "response": response,
+            "updated_context": context,
+            "next_agent": None  # Stay in sub-risk agent until user chooses
         }
 

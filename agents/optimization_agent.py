@@ -209,6 +209,29 @@ Provide detailed, informative responses explaining portfolio characteristics."""
             response += "I've calculated the optimal weight (percentage allocation) for each fund in your portfolio. "
             response += "The optimization uses advanced mathematical models to balance risk and return based on your profile. 🧮\n\n"
             
+            # Show risk profile and sub-risk category
+            primary_risk = context.get("primary_risk_bucket", "N/A")
+            sub_risk = context.get("sub_risk_bucket", "N/A")
+            
+            # Map technical sub-risk labels to friendly names
+            friendly_names = {
+                "LOW_LOW": "Very Conservative (Maximum Safety)",
+                "LOW_MEDIUM": "Conservative (Low Risk)",
+                "LOW_HIGH": "Low Risk with Some Growth Tilt",
+                "MEDIUM_LOW": "Balanced but Cautious",
+                "MEDIUM_MEDIUM": "Balanced Growth Style",
+                "MEDIUM_HIGH": "Growth-Oriented Balanced",
+                "HIGH_LOW": "Growth with Some Safety",
+                "HIGH_MEDIUM": "Aggressive Growth",
+                "HIGH_HIGH": "Very Aggressive / High Growth"
+            }
+            friendly_sub_risk = friendly_names.get(sub_risk, sub_risk.replace('_', ' ').title() if sub_risk != 'N/A' else 'N/A')
+            
+            response += "### 🎯 Risk Profile & Sub-Risk Category\n\n"
+            response += "| Risk Level | Sub-Risk Category | Description |\n"
+            response += "|------------|-------------------|-------------|\n"
+            response += f"| {primary_risk} | {friendly_sub_risk} | Your refined risk profile based on volatility/drawdown tolerance |\n\n"
+            
             # Show fund allocation by category with explanations
             fund_counts = context.get("fund_counts", {})
             suggested_funds = context.get("suggested_funds", {})

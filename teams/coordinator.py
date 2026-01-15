@@ -107,7 +107,20 @@ class CoordinatorAgent:
             agent.conversation_history = self.context["conversation_history"].copy()
         
         # Determine current agent based on context (prevents loops)
+        previous_agent = self.current_agent
         self._determine_current_agent()
+        
+        # CRITICAL: Prevent reverting back - if we've moved forward, don't go back
+        # Only allow moving forward in the workflow
+        agent_order = ["currency", "geography", "risk_assessment", "fund_selection", "sub_risk_refinement", "optimization"]
+        try:
+            prev_idx = agent_order.index(previous_agent) if previous_agent in agent_order else -1
+            curr_idx = agent_order.index(self.current_agent) if self.current_agent in agent_order else -1
+            # If determined agent is before previous agent, keep previous agent (don't revert)
+            if prev_idx >= 0 and curr_idx >= 0 and curr_idx < prev_idx:
+                self.current_agent = previous_agent
+        except:
+            pass  # If error, continue with determined agent
         
         # Route to appropriate agent
         agent_map = {

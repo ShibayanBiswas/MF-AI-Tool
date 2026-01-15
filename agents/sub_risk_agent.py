@@ -196,34 +196,41 @@ Provide detailed, informative responses explaining what each sub-risk option mea
                     friendly_label = friendly_names.get(sub_risk, sub_risk.replace('_', ' ').title())
                     
                     response = f"## 🎯 Sub-Risk Profile Refined\n\n"
-                    response += f"**Sub-Risk Style:** {friendly_label} (`{sub_risk}`)\n\n"
+                    response += f"### 📋 Sub-Risk Style: {friendly_label}\n\n"
                     
-                    response += "**What This Means:**\n"
+                    response += "### 💡 What This Means:\n\n"
                     if "HIGH" in sub_risk:
-                        response += f"- You're comfortable with **higher volatility** (~{volatility}%)\n"
-                        response += "- Your portfolio will focus more on growth-oriented funds (mid-cap, small-cap)\n"
-                        response += "- Higher potential returns but also bigger temporary drops\n"
-                        response += "- Suitable for long-term investors (10+ years) who can ride out market volatility\n"
+                        response += f"| Aspect | Details |\n"
+                        response += f"|--------|---------|\n"
+                        response += f"| 📊 Volatility Tolerance | Higher volatility (~{volatility}%) |\n"
+                        response += f"| 🎯 Portfolio Focus | Growth-oriented funds (mid-cap, small-cap) |\n"
+                        response += f"| 📈 Return Potential | Higher potential returns but also bigger temporary drops |\n"
+                        response += f"| 👥 Suitable For | Long-term investors (10+ years) who can ride out market volatility |\n"
                     elif "MEDIUM" in sub_risk:
-                        response += f"- You prefer **moderate volatility** (~{volatility}%)\n"
-                        response += "- Your portfolio will have a balanced mix of equity and debt\n"
-                        response += "- Balanced growth with some stability\n"
-                        response += "- Suitable for most investors seeking steady wealth creation\n"
+                        response += f"| Aspect | Details |\n"
+                        response += f"|--------|---------|\n"
+                        response += f"| 📊 Volatility Tolerance | Moderate volatility (~{volatility}%) |\n"
+                        response += f"| 🎯 Portfolio Focus | Balanced mix of equity and debt |\n"
+                        response += f"| 📈 Return Potential | Balanced growth with some stability |\n"
+                        response += f"| 👥 Suitable For | Most investors seeking steady wealth creation |\n"
                     else:  # LOW
-                        response += f"- You prefer **lower volatility** (~{volatility}%)\n"
-                        response += "- Your portfolio will emphasize stability (debt, large-cap)\n"
-                        response += "- Capital preservation with modest growth\n"
-                        response += "- Suitable for conservative investors or those near retirement\n"
+                        response += f"| Aspect | Details |\n"
+                        response += f"|--------|---------|\n"
+                        response += f"| 📊 Volatility Tolerance | Lower volatility (~{volatility}%) |\n"
+                        response += f"| 🎯 Portfolio Focus | Stability (debt, large-cap) |\n"
+                        response += f"| 📈 Return Potential | Capital preservation with modest growth |\n"
+                        response += f"| 👥 Suitable For | Conservative investors or those near retirement |\n"
                     
+                    response += "\n"
                     if drawdown:
-                        response += f"\n**Maximum Drawdown Tolerance:** {drawdown}%\n"
-                        response += f"This means you're comfortable if your portfolio temporarily drops up to {drawdown}% from its peak value.\n"
+                        response += f"### 📉 Maximum Drawdown Tolerance: {drawdown}%\n"
+                        response += f"💡 This means you're comfortable if your portfolio temporarily drops up to {drawdown}% from its peak value.\n\n"
                     else:
-                        response += f"\n**Volatility Target:** {volatility}%\n"
-                        response += f"This means your portfolio value could swing up or down by approximately {volatility}% in value.\n"
+                        response += f"### 📊 Volatility Target: {volatility}%\n"
+                        response += f"💡 This means your portfolio value could swing up or down by approximately {volatility}% in value.\n\n"
                     
-                    response += "\n**Ready for Optimization:** ✅\n"
-                    response += "All parameters are set. I'll now calculate the optimal weights for your portfolio based on these settings."
+                    response += "### ✅ Ready for Optimization\n"
+                    response += "All parameters are set. I'll now calculate the optimal weights for your portfolio based on these settings. 🚀"
                     
                     return {
                         "response": response,

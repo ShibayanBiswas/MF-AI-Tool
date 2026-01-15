@@ -3,6 +3,7 @@ Fund Selection Agent - Handles fund selection with proper tool calling.
 """
 import json
 import random
+import pandas as pd
 from typing import Dict, List, Any, Optional
 from database import Database
 from dummy_data import generate_dummy_funds
@@ -222,7 +223,7 @@ CRITICAL:
             }
         }
         
-        response += "**Portfolio Structure & What Each Category Does:**\n\n"
+        response += "## 📊 Portfolio Structure & What Each Category Does\n\n"
         total_funds = 0
         for category, count in fund_counts.items():
             if count and count > 0:
@@ -231,16 +232,28 @@ CRITICAL:
                 total_funds += actual_count
                 cat_info = category_detailed_explanations.get(category, {})
                 
-                response += f"**{category_name}** ({actual_count} fund{'s' if actual_count != 1 else ''}):\n"
-                response += f"- **What it is**: {cat_info.get('what', 'Diversified investment')}\n"
-                response += f"- **Why it's included**: {cat_info.get('why', 'Portfolio diversification')}\n"
-                response += f"- **Expected returns**: {cat_info.get('returns', 'Varies')}\n"
-                response += f"- **Risk level**: {cat_info.get('risk', 'Moderate')}\n"
+                category_icons = {
+                    "debt": "🛡️",
+                    "large_cap": "🏢",
+                    "mid_cap": "📈",
+                    "small_cap": "🚀",
+                    "balanced": "⚖️",
+                    "tax_saver": "💼"
+                }
+                icon = category_icons.get(category, "📊")
+                
+                response += f"### {icon} {category_name} ({actual_count} fund{'s' if actual_count != 1 else ''})\n\n"
+                response += f"| Detail | Description |\n"
+                response += f"|--------|-------------|\n"
+                response += f"| 📝 What it is | {cat_info.get('what', 'Diversified investment')} |\n"
+                response += f"| 💡 Why it's included | {cat_info.get('why', 'Portfolio diversification')} |\n"
+                response += f"| 💰 Expected returns | {cat_info.get('returns', 'Varies')} |\n"
+                response += f"| ⚠️ Risk level | {cat_info.get('risk', 'Moderate')} |\n"
                 response += "\n"
         
-        response += f"**Total Funds Selected**: {total_funds} funds across {len([c for c, v in fund_counts.items() if v and v > 0])} categories\n\n"
+        response += f"### 📦 Total Funds Selected: {total_funds} funds across {len([c for c, v in fund_counts.items() if v and v > 0])} categories\n\n"
         
-        # Show geography distribution if USD
+        # Show geography distribution if USD - show ALL geographies with allocation
         currency = context.get("currency")
         if currency == "USD" and context.get("geography_constraints"):
             geography_distribution = {}
@@ -249,56 +262,78 @@ CRITICAL:
                     geo = fund.get("geography", "N/A")
                     geography_distribution[geo] = geography_distribution.get(geo, 0) + 1
             
-            if geography_distribution:
-                response += "**Geography Distribution (Number of Funds by Geography):**\n\n"
-                geo_flags = {
-                    'USA': '🇺🇸', 'India': '🇮🇳', 'Japan': '🇯🇵',
-                    'Europe': '🇪🇺', 'UK': '🇬🇧', 'China': '🇨🇳'
-                }
-                for geo, count in sorted(geography_distribution.items(), key=lambda x: x[1], reverse=True):
+            # Show all geographies from constraints, even if they have 0 funds (to show the issue)
+            geo_flags = {
+                'USA': '🇺🇸', 'India': '🇮🇳', 'Japan': '🇯🇵',
+                'Europe': '🇪🇺', 'UK': '🇬🇧', 'China': '🇨🇳'
+            }
+            
+            response += "### 🌍 Geography Distribution (Number of Funds by Geography)\n\n"
+            response += "| Geography | Funds Selected | Target Allocation |\n"
+            response += "|-----------|----------------|-------------------|\n"
+            
+            # Show all geographies from constraints
+            for geo, geo_pct in sorted(context.get("geography_constraints", {}).items(), key=lambda x: x[1], reverse=True):
+                if geo_pct > 0:
                     flag = geo_flags.get(geo, '🌍')
-                    geo_pct = context.get("geography_constraints", {}).get(geo, 0)
-                    response += f"- {flag} **{geo}**: {count} fund{'s' if count != 1 else ''} (target allocation: {geo_pct}%)\n"
-                response += "\n"
+                    count = geography_distribution.get(geo, 0)
+                    response += f"| {flag} {geo} | {count} fund{'s' if count != 1 else ''} | {geo_pct}% |\n"
+            response += "\n"
         
         # Explain how selection matches risk profile
-        response += f"**How This Matches Your {primary_risk} Risk Profile:**\n"
+        response += f"### 🎯 How This Matches Your {primary_risk} Risk Profile\n\n"
         if primary_risk == "LOW":
-            response += "Your portfolio emphasizes stability with more debt and large-cap funds. "
-            response += "This provides capital preservation while still allowing for some growth through equity exposure.\n\n"
+            response += "| Point | Description |\n"
+            response += "|-------|-------------|\n"
+            response += "| 🛡️ Stability Focus | Your portfolio emphasizes stability with more debt and large-cap funds |\n"
+            response += "| 💰 Growth Potential | This provides capital preservation while still allowing for some growth through equity exposure |\n\n"
         elif primary_risk == "MEDIUM":
-            response += "Your portfolio is balanced with a mix of equity and debt. "
-            response += "This provides moderate growth potential while maintaining some stability through debt funds.\n\n"
+            response += "| Point | Description |\n"
+            response += "|-------|-------------|\n"
+            response += "| ⚖️ Balanced Approach | Your portfolio is balanced with a mix of equity and debt |\n"
+            response += "| 📈 Moderate Growth | This provides moderate growth potential while maintaining some stability through debt funds |\n\n"
         else:  # HIGH
-            response += "Your portfolio focuses on growth with more mid-cap and small-cap funds. "
-            response += "This provides higher return potential but comes with higher volatility. "
-            response += "Suitable for long-term investors comfortable with market swings.\n\n"
+            response += "| Point | Description |\n"
+            response += "|-------|-------------|\n"
+            response += "| 🚀 Growth Focus | Your portfolio focuses on growth with more mid-cap and small-cap funds |\n"
+            response += "| 📊 Higher Returns | This provides higher return potential but comes with higher volatility |\n"
+            response += "| ⏰ Long-term | Suitable for long-term investors comfortable with market swings |\n\n"
         
-        response += "**Selected Funds Details:**\n\n"
+        response += "### 📋 Selected Funds Details\n\n"
         response += self._format_fund_table(suggested_funds)
         
         # Add prompt asking if user wants to proceed with optimization
         response += "\n---\n\n"
         response += "## 🚀 Ready for Portfolio Optimization?\n\n"
-        response += "Great! I've selected the **actual fund names** for your portfolio based on:\n"
-        response += f"- Your risk profile ({primary_risk})\n"
-        response += f"- Currency ({currency})\n"
+        response += "### ✅ Great! I've selected the actual fund names for your portfolio based on:\n\n"
+        response += "| Criteria | Details |\n"
+        response += "|----------|---------|\n"
+        response += f"| 🎯 Risk Profile | {primary_risk} |\n"
+        response += f"| 💵 Currency | {currency} |\n"
         if currency == "USD" and context.get("geography_constraints"):
-            response += "- Your geography preferences (country allocation you confirmed)\n"
-        response += "- Fund performance metrics (returns, volatility, drawdown)\n\n"
-        response += "**What Happens Next?**\n"
-        response += "1. **Sub-Risk Refinement**: I'll refine your risk profile to get your exact volatility/drawdown tolerance\n"
-        response += "2. **Portfolio Optimization**: I'll calculate the optimal weight (percentage allocation) for each selected fund using:\n"
-        response += "   - The selected funds' historical performance metrics\n"
-        response += "   - Your risk tolerance and volatility targets\n"
-        response += "   - Advanced mathematical models to maximize returns while staying within your risk limits\n"
-        response += "   - Geography and category constraints\n\n"
-        response += "**The optimization will determine:**\n"
-        response += "- What percentage of your portfolio should go to each fund\n"
-        response += "- How to balance risk and return based on the actual fund metrics\n"
-        response += "- The final allocation that matches your investment goals\n\n"
-        response += "**Would you like me to proceed?** Say **'yes'**, **'proceed'**, **'optimize'**, or **'continue'** to start the optimization process. "
-        response += "Or if you have any questions about the selected funds, feel free to ask!"
+            response += "| 🌍 Geography Preferences | Based on your confirmed allocation |\n"
+        response += "| 📊 Fund Performance | Returns, volatility, and drawdown metrics |\n\n"
+        
+        response += "### 📋 What Happens Next?\n\n"
+        response += "| Step | Description |\n"
+        response += "|------|-------------|\n"
+        response += "| 1️⃣ Sub-Risk Refinement | I'll refine your risk profile to get your exact volatility/drawdown tolerance |\n"
+        response += "| 2️⃣ Portfolio Optimization | I'll calculate the optimal weight (percentage allocation) for each selected fund using: |\n"
+        response += "|    | • 📈 The selected funds' historical performance metrics |\n"
+        response += "|    | • ⚖️ Your risk tolerance and volatility targets |\n"
+        response += "|    | • 🧮 Advanced mathematical models to maximize returns while staying within your risk limits |\n"
+        response += "|    | • 🌍 Geography and category constraints |\n\n"
+        
+        response += "### 🎯 The optimization will determine:\n\n"
+        response += "| Outcome | Description |\n"
+        response += "|---------|-------------|\n"
+        response += "| 📊 Fund Allocation | What percentage of your portfolio should go to each fund |\n"
+        response += "| ⚖️ Risk-Return Balance | How to balance risk and return based on the actual fund metrics |\n"
+        response += "| 🎯 Goal Alignment | The final allocation that matches your investment goals |\n\n"
+        
+        response += "### 💬 Ready to proceed?\n"
+        response += "Say 'yes', 'proceed', 'optimize', or 'continue' to start the optimization process. "
+        response += "Or if you have any questions about the selected funds, feel free to ask! 💭"
         
         return {
             "response": response,
@@ -325,50 +360,80 @@ CRITICAL:
         
         # For USD, distribute funds across geographies based on geography_constraints
         if currency == "USD" and geography_constraints and total_funds_needed > 0:
-            # Step 1: compute raw fractional allocations per geography
-            raw_allocations = {}
-            for geo, pct in geography_constraints.items():
-                if pct and pct > 0:
-                    raw = total_funds_needed * (pct / 100.0)
-                    raw_allocations[geo] = raw
+            # Step 1: Identify geographies with >0% allocation
+            active_geos = [geo for geo, pct in geography_constraints.items() if pct and pct > 0]
             
-            # Step 2: take floors and track remainders
+            # Step 2: Ensure ALL geographies with >0% get at least 1 fund if we have enough funds
             geography_fund_allocation = {}
-            remainders = []
-            allocated = 0
-            for geo, raw in raw_allocations.items():
-                base = int(raw)
-                geography_fund_allocation[geo] = base
-                allocated += base
-                remainders.append((geo, raw - base))
+            min_funds_needed = len(active_geos)  # At least 1 per active geography
             
-            # Step 3: distribute remaining funds based on largest remainders
-            remaining = max(0, total_funds_needed - allocated)
-            if remaining > 0 and remainders:
-                remainders.sort(key=lambda x: x[1], reverse=True)
-                idx = 0
-                while remaining > 0:
-                    geo = remainders[idx][0]
-                    geography_fund_allocation[geo] = geography_fund_allocation.get(geo, 0) + 1
-                    remaining -= 1
-                    idx = (idx + 1) % len(remainders)
+            if total_funds_needed >= min_funds_needed:
+                # Give each active geography at least 1 fund
+                for geo in active_geos:
+                    geography_fund_allocation[geo] = 1
+                remaining_funds = total_funds_needed - min_funds_needed
+            else:
+                # Not enough funds - give to highest percentage geographies
+                sorted_geos = sorted(active_geos, key=lambda g: geography_constraints.get(g, 0), reverse=True)
+                for i, geo in enumerate(sorted_geos[:total_funds_needed]):
+                    geography_fund_allocation[geo] = 1
+                remaining_funds = 0
             
-            # Final safety: if we somehow overshot, trim from smallest allocations
+            # Step 3: Distribute remaining funds proportionally based on percentages
+            if remaining_funds > 0:
+                # Calculate proportional allocation for remaining funds
+                total_pct = sum(geography_constraints.get(geo, 0) for geo in active_geos)
+                if total_pct > 0:
+                    raw_allocations = {}
+                    for geo in active_geos:
+                        pct = geography_constraints.get(geo, 0)
+                        raw = remaining_funds * (pct / total_pct)
+                        raw_allocations[geo] = raw
+                    
+                    # Take floors and track remainders
+                    remainders = []
+                    allocated = 0
+                    for geo, raw in raw_allocations.items():
+                        base = int(raw)
+                        geography_fund_allocation[geo] = geography_fund_allocation.get(geo, 0) + base
+                        allocated += base
+                        remainders.append((geo, raw - base))
+                    
+                    # Distribute remaining based on largest remainders
+                    remaining = remaining_funds - allocated
+                    if remaining > 0 and remainders:
+                        remainders.sort(key=lambda x: x[1], reverse=True)
+                        idx = 0
+                        while remaining > 0:
+                            geo = remainders[idx][0]
+                            geography_fund_allocation[geo] = geography_fund_allocation.get(geo, 0) + 1
+                            remaining -= 1
+                            idx = (idx + 1) % len(remainders)
+            
+            # Final safety: ensure total matches
             total_allocated = sum(geography_fund_allocation.values())
-            if total_allocated > total_funds_needed:
-                for geo, _ in sorted(geography_fund_allocation.items(), key=lambda x: x[1]):
-                    if total_allocated <= total_funds_needed:
-                        break
-                    if geography_fund_allocation[geo] > 0:
-                        geography_fund_allocation[geo] -= 1
-                        total_allocated -= 1
+            if total_allocated != total_funds_needed:
+                # Adjust largest geography to match
+                if total_allocated < total_funds_needed:
+                    largest_geo = max(geography_fund_allocation.items(), key=lambda x: x[1])[0]
+                    geography_fund_allocation[largest_geo] += (total_funds_needed - total_allocated)
+                else:
+                    # Trim from smallest allocations
+                    for geo, _ in sorted(geography_fund_allocation.items(), key=lambda x: x[1]):
+                        if total_allocated <= total_funds_needed:
+                            break
+                        if geography_fund_allocation[geo] > 1:  # Keep at least 1
+                            geography_fund_allocation[geo] -= 1
+                            total_allocated -= 1
             
-            # Distribute funds by category across geographies
+            # Track how many funds each geography still needs across ALL categories
+            geography_fund_tracker = geography_fund_allocation.copy()
+            
+            # First, collect all category funds and create a pool per geography per category
+            category_geo_pools = {}
             for category, count in fund_counts.items():
                 if count and count > 0:
                     category_funds = df[df["category"] == category].copy()
-                    
-                    # Filter by available geographies
                     available_geos = [g for g in geography_fund_allocation.keys() if geography_fund_allocation[g] > 0]
                     category_funds = category_funds[category_funds["geography"].isin(available_geos)]
                     
@@ -391,35 +456,106 @@ CRITICAL:
                             if len(pool) == 0:
                                 pool = category_funds
                         
-                        # Distribute count across geographies proportionally
-                        fund_list = []
-                        remaining_count = int(count)
+                        # Group by geography
+                        category_geo_pools[category] = {}
+                        for geo in available_geos:
+                            geo_pool = pool[pool["geography"] == geo].copy()
+                            if len(geo_pool) > 0:
+                                category_geo_pools[category][geo] = geo_pool
+            
+            # Now distribute funds ensuring each geography gets its allocated count
+            for category, count in fund_counts.items():
+                if count and count > 0:
+                    fund_list = []
+                    remaining_count = int(count)
+                    
+                    if category in category_geo_pools:
+                        geo_pools = category_geo_pools[category]
                         
-                        # Sort geographies by allocation percentage (descending)
-                        geo_order = sorted(geography_fund_allocation.items(), key=lambda x: x[1], reverse=True)
-                        
-                        for geo, geo_fund_count in geo_order:
-                            if remaining_count <= 0:
-                                break
+                        # First pass: Give each geography at least 1 fund if it still needs funds and has available funds
+                        for geo, geo_fund_count in sorted(geography_fund_tracker.items(), key=lambda x: (x[1] > 0, x[1]), reverse=True):
+                            if remaining_count <= 0 or geo_fund_count <= 0:
+                                continue
                             
-                            # Calculate how many funds from this geography for this category
-                            # Distribute proportionally based on geography allocation
-                            geo_pct = geography_constraints.get(geo, 0)
-                            if geo_pct > 0:
-                                # Calculate proportional allocation for this category
-                                num_from_geo = max(1, round(int(count) * geo_pct / 100))
-                                num_from_geo = min(num_from_geo, remaining_count)
+                            if geo in geo_pools and len(geo_pools[geo]) > 0:
+                                # Give 1 fund to this geography
+                                selected = geo_pools[geo].sample(n=1, random_state=random.randint(0, 2**32))
                                 
-                                # Get funds from this geography and category
-                                geo_pool = pool[pool["geography"] == geo].copy()
+                                for _, row in selected.iterrows():
+                                    fund_list.append({
+                                        "name": str(row["name"]).strip(),
+                                        "returns": float(row["returns"]),
+                                        "volatility": float(row["volatility"]),
+                                        "max_drawdown": float(row.get("max_drawdown", 0)),
+                                        "geography": str(row.get("geography", "N/A")),
+                                        "type": str(row.get("type", "N/A")),
+                                        "category": category
+                                    })
                                 
-                                if len(geo_pool) > 0:
-                                    num_to_select = min(num_from_geo, len(geo_pool), remaining_count)
+                                # Remove selected fund from pool
+                                geo_pools[geo] = geo_pools[geo][geo_pools[geo]["name"] != row["name"]]
+                                remaining_count -= 1
+                                geography_fund_tracker[geo] -= 1
+                        
+                        # Second pass: Distribute remaining funds proportionally
+                        if remaining_count > 0:
+                            # Calculate proportional allocation for remaining funds
+                            total_remaining_geo = sum(geography_fund_tracker.values())
+                            
+                            if total_remaining_geo > 0:
+                                for geo, geo_fund_count in sorted(geography_fund_tracker.items(), key=lambda x: x[1], reverse=True):
+                                    if remaining_count <= 0 or geo_fund_count <= 0:
+                                        continue
+                                    
+                                    if geo in geo_pools and len(geo_pools[geo]) > 0:
+                                        # Calculate how many more funds this geography should get
+                                        geo_pct = geography_constraints.get(geo, 0)
+                                        if geo_pct > 0:
+                                            num_from_geo = max(1, round(remaining_count * geo_pct / 100))
+                                            num_from_geo = min(num_from_geo, remaining_count, len(geo_pools[geo]), geo_fund_count)
+                                            
+                                            if num_from_geo > 0:
+                                                if len(geo_pools[geo]) > num_from_geo:
+                                                    selected = geo_pools[geo].sample(n=num_from_geo, random_state=random.randint(0, 2**32))
+                                                else:
+                                                    selected = geo_pools[geo]
+                                                
+                                                for _, row in selected.iterrows():
+                                                    fund_list.append({
+                                                        "name": str(row["name"]).strip(),
+                                                        "returns": float(row["returns"]),
+                                                        "volatility": float(row["volatility"]),
+                                                        "max_drawdown": float(row.get("max_drawdown", 0)),
+                                                        "geography": str(row.get("geography", "N/A")),
+                                                        "type": str(row.get("type", "N/A")),
+                                                        "category": category
+                                                    })
+                                                
+                                                # Remove selected funds from pool
+                                                selected_names = selected["name"].tolist()
+                                                geo_pools[geo] = geo_pools[geo][~geo_pools[geo]["name"].isin(selected_names)]
+                                                remaining_count -= num_from_geo
+                                                geography_fund_tracker[geo] -= num_from_geo
+                        
+                        # Final pass: Fill any remaining slots
+                        if remaining_count > 0:
+                            all_remaining = []
+                            for geo, pool in geo_pools.items():
+                                if len(pool) > 0:
+                                    all_remaining.append(pool)
+                            
+                            if all_remaining:
+                                combined_pool = pd.concat(all_remaining, ignore_index=True)
+                                selected_names = [f.get("name") for f in fund_list]
+                                combined_pool = combined_pool[~combined_pool["name"].isin(selected_names)]
+                                
+                                if len(combined_pool) > 0:
+                                    num_to_select = min(remaining_count, len(combined_pool))
                                     if num_to_select > 0:
-                                        if len(geo_pool) > num_to_select:
-                                            selected = geo_pool.sample(n=num_to_select, random_state=random.randint(0, 2**32))
+                                        if len(combined_pool) > num_to_select:
+                                            selected = combined_pool.sample(n=num_to_select, random_state=random.randint(0, 2**32))
                                         else:
-                                            selected = geo_pool
+                                            selected = combined_pool
                                         
                                         for _, row in selected.iterrows():
                                             fund_list.append({
@@ -431,11 +567,55 @@ CRITICAL:
                                                 "type": str(row.get("type", "N/A")),
                                                 "category": category
                                             })
-                                        remaining_count -= num_to_select
                         
-                        # If we still need more funds, fill from any available geography
+                        if len(fund_list) > 0:
+                            suggested[category] = fund_list
+                        
+                        # Second pass: Distribute remaining funds proportionally
                         if remaining_count > 0:
-                            remaining_pool = pool[~pool["geography"].isin([f.get("geography") for f in fund_list])]
+                            geo_order = sorted(geography_fund_allocation.items(), key=lambda x: x[1], reverse=True)
+                            
+                            for geo, geo_fund_count in geo_order:
+                                if remaining_count <= 0:
+                                    break
+                                
+                                geo_pct = geography_constraints.get(geo, 0)
+                                if geo_pct > 0:
+                                    # Calculate proportional allocation for remaining funds
+                                    num_from_geo = max(1, round(remaining_count * geo_pct / 100))
+                                    num_from_geo = min(num_from_geo, remaining_count)
+                                    
+                                    geo_pool = pool[pool["geography"] == geo].copy()
+                                    # Exclude already selected funds
+                                    selected_names = [f.get("name") for f in fund_list]
+                                    geo_pool = geo_pool[~geo_pool["name"].isin(selected_names)]
+                                    
+                                    if len(geo_pool) > 0:
+                                        num_to_select = min(num_from_geo, len(geo_pool), remaining_count)
+                                        if num_to_select > 0:
+                                            if len(geo_pool) > num_to_select:
+                                                selected = geo_pool.sample(n=num_to_select, random_state=random.randint(0, 2**32))
+                                            else:
+                                                selected = geo_pool
+                                            
+                                            for _, row in selected.iterrows():
+                                                fund_list.append({
+                                                    "name": str(row["name"]).strip(),
+                                                    "returns": float(row["returns"]),
+                                                    "volatility": float(row["volatility"]),
+                                                    "max_drawdown": float(row.get("max_drawdown", 0)),
+                                                    "geography": str(row.get("geography", "N/A")),
+                                                    "type": str(row.get("type", "N/A")),
+                                                    "category": category
+                                                })
+                                            remaining_count -= num_to_select
+                        
+                        # Final pass: Fill any remaining slots from any available geography
+                        if remaining_count > 0:
+                            remaining_pool = pool.copy()
+                            selected_names = [f.get("name") for f in fund_list]
+                            remaining_pool = remaining_pool[~remaining_pool["name"].isin(selected_names)]
+                            
                             if len(remaining_pool) == 0:
                                 remaining_pool = pool
                             

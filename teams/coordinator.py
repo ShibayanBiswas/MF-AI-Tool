@@ -71,6 +71,23 @@ class CoordinatorAgent:
                 if db_funds:
                     self.context["suggested_funds"] = db_funds
                 
+                # Load conversation history from database
+                db_history = self.db.get_conversation_history(self.session_id, limit=100)
+                if db_history:
+                    # Convert database format to conversation history format
+                    self.context["conversation_history"] = []
+                    for conv in db_history:
+                        if conv.get("user_message"):
+                            self.context["conversation_history"].append({
+                                "role": "user",
+                                "content": conv["user_message"]
+                            })
+                        if conv.get("bot_response"):
+                            self.context["conversation_history"].append({
+                                "role": "assistant",
+                                "content": conv["bot_response"]
+                            })
+                
                 # Determine current agent based on context
                 self._determine_current_agent()
             except Exception as e:
@@ -78,6 +95,9 @@ class CoordinatorAgent:
     
     def chat(self, user_message: str) -> Dict[str, Any]:
         """Process user message through appropriate agent with enhanced context memory."""
+        # Load context from database at the start of each chat to ensure we have latest state
+        self._load_context_from_database()
+        
         # Add to conversation history
         self.context["conversation_history"].append({"role": "user", "content": user_message})
         
@@ -160,10 +180,10 @@ class CoordinatorAgent:
     
     def _determine_current_agent(self):
         """Determine current agent based on context state to prevent loops."""
-        # Check in order of workflow
+        # Check in order of workflow - be very strict about not going backwards
         if not self.context.get("currency"):
             self.current_agent = "currency"
-        elif self.context.get("currency") == "USD" and not self.context.get("geography_constraints"):
+        elif self.context.get("currency") == "USD" and (not self.context.get("geography_constraints") or len(self.context.get("geography_constraints", {})) == 0):
             self.current_agent = "geography"
         elif not self.context.get("primary_risk_bucket"):
             self.current_agent = "risk_assessment"
@@ -173,6 +193,15 @@ class CoordinatorAgent:
             self.current_agent = "sub_risk_refinement"
         else:
             self.current_agent = "optimization"
+        
+        # CRITICAL: If we've moved past an agent, never go back
+        # Check flags to prevent regression
+        if self.context.get("_moved_to_geography") and self.current_agent == "currency":
+            self.current_agent = "geography"
+        if self.context.get("_moved_to_risk_assessment") and self.current_agent in ["currency", "geography"]:
+            self.current_agent = "risk_assessment"
+        if self.context.get("_moved_to_fund_selection") and self.current_agent in ["currency", "geography", "risk_assessment"]:
+            self.current_agent = "fund_selection"
     
     def reset(self):
         """Reset coordinator state."""

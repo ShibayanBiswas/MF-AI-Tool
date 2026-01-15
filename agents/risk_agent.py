@@ -72,7 +72,7 @@ DETAILED RESPONSE REQUIREMENTS:
    You can answer with a number (like 10%, 20%, 30%, 40%, 50%) or in words ('small drop only', 'I can handle big swings')."
 
    **Q2 (Behavior) - Ask with context:**
-   "Another question to understand your investment behavior: If your portfolio drops 20% in a month, what would you do?
+   "Another question to understand your investment behavior: If your portfolio drops 10% in a month, what would you do?
    
    | Option | Action | Risk Profile | Characteristics |
    |--------|--------|--------------|------------------|
@@ -108,6 +108,7 @@ DETAILED RESPONSE REQUIREMENTS:
 6. DO NOT wait for "yes pls" or user confirmation - proceed automatically
 7. DO NOT ask risk questions if primary_risk_bucket already set in context
 8. The fund allocation structure is shown IMMEDIATELY after risk assessment with detailed explanations
+9. **CRITICAL: After inferring risk from user answers, IMMEDIATELY call set_risk_profile tool and then automatically proceed to fund selection - DO NOT ask "Is there anything else?" or "Would you like to proceed?" - just proceed automatically**
 
 CRITICAL: 
 - Check context first - if risk already assessed, skip to next agent
@@ -115,7 +116,8 @@ CRITICAL:
 - Show fund allocation structure IMMEDIATELY with educational context
 - **ONLY show fund COUNTS (number of funds per category) - NEVER show allocation percentages**
 - **Percentages will be calculated later during optimization based on actual fund metrics**
-- Automatically proceed to fund selection after showing allocation"""
+- **After showing fund structure, IMMEDIATELY return next_agent: "fund_selection" - DO NOT ask for confirmation**
+- **NEVER ask "Is there anything else you'd like to specify?" or similar confirmation questions - just proceed automatically**"""
 
     def execute(self, user_message: str, context: Dict) -> Dict[str, Any]:
         # Check if already set
@@ -192,7 +194,14 @@ IMPORTANT BUSINESS RULES:
 
 Keep questions short. Never overwhelm with more than 2 questions in one message.
 Always explain what "volatility" and "drawdown" mean the first time you use them.
-Do subjective questioning and keep interacting with the user naturally."""
+Do subjective questioning and keep interacting with the user naturally.
+
+CRITICAL AUTOMATIC PROGRESSION RULES:
+- When user says "Moderate", "Conservative", "Aggressive", or similar risk level words, IMMEDIATELY infer the risk and call set_risk_profile tool
+- When user says "no move forward", "continue", "proceed", or similar, IMMEDIATELY proceed - DO NOT ask "Is there anything else?"
+- After calling set_risk_profile tool, ALWAYS return next_agent: "fund_selection" - DO NOT ask for confirmation
+- NEVER ask "Is there anything else you'd like to specify?" or "Would you like to proceed?" - just proceed automatically
+- The system will automatically handle fund selection after risk assessment - you don't need to ask for permission"""
         
         messages = self._build_messages_with_context(context, additional_system_prompts=[detailed_prompt])
         messages.append({"role": "user", "content": user_message})
@@ -260,33 +269,41 @@ Do subjective questioning and keep interacting with the user naturally."""
                     response += f"{risk_info.get('explanation', '')}\n\n"
                     
                     # Show fund COUNTS in a table (NOT percentages)
-                    response += "**Portfolio Fund Structure (Number of Funds by Category):**\n\n"
+                    response += "## 📊 Portfolio Fund Structure (Number of Funds by Category)\n\n"
                     response += "| Category | Number of Funds | Purpose |\n"
                     response += "|----------|-----------------|----------|\n"
                     
                     category_descriptions = {
-                        "debt": "Lower risk, stable returns, capital preservation",
-                        "large_cap": "Established companies, moderate risk, steady growth",
-                        "mid_cap": "Growing companies, higher risk, higher growth potential",
-                        "small_cap": "Small companies, highest risk, highest growth potential",
-                        "balanced": "Mix of equity and debt, moderate risk-return profile",
-                        "tax_saver": "Equity-linked savings scheme, tax benefits, 3-year lock-in"
+                        "debt": "🛡️ Lower risk, stable returns, capital preservation",
+                        "large_cap": "🏢 Established companies, moderate risk, steady growth",
+                        "mid_cap": "📈 Growing companies, higher risk, higher growth potential",
+                        "small_cap": "🚀 Small companies, highest risk, highest growth potential",
+                        "balanced": "⚖️ Mix of equity and debt, moderate risk-return profile",
+                        "tax_saver": "💼 Equity-linked savings scheme, tax benefits, 3-year lock-in"
                     }
                     
                     for category, count in fund_counts.items():
                         if count and count > 0:
                             category_name = category.replace("_", " ").title()
                             description = category_descriptions.get(category, "Diversified investment")
-                            response += f"| **{category_name}** | **{count} fund{'s' if count != 1 else ''}** | {description} |\n"
+                            response += f"| {category_name} | {count} fund{'s' if count != 1 else ''} | {description} |\n"
                     
-                    response += "\n**Note:** These are the NUMBER of funds we'll select in each category. The actual allocation percentages will be calculated later during portfolio optimization based on the selected funds' performance metrics.\n\n"
-                    response += "**Expected Portfolio Characteristics:**\n"
+                    response += "\n💡 Note: These are the NUMBER of funds we'll select in each category. The actual allocation percentages will be calculated later during portfolio optimization based on the selected funds' performance metrics.\n\n"
+                    response += "### 📈 Expected Portfolio Characteristics:\n\n"
+                    response += "| Characteristic | Details |\n"
+                    response += "|----------------|---------|\n"
                     if primary_risk == "LOW":
-                        response += "- Volatility: ~10-15%\n- Expected Returns: ~8-12% annually\n- Suitable for: Conservative investors, near retirement, short-term goals\n\n"
+                        response += "| 📉 Volatility | ~10-15% |\n"
+                        response += "| 💰 Expected Returns | ~8-12% annually |\n"
+                        response += "| 👥 Suitable For | Conservative investors, near retirement, short-term goals |\n\n"
                     elif primary_risk == "MEDIUM":
-                        response += "- Volatility: ~15-25%\n- Expected Returns: ~12-15% annually\n- Suitable for: Most investors seeking balanced risk-return\n\n"
+                        response += "| 📉 Volatility | ~15-25% |\n"
+                        response += "| 💰 Expected Returns | ~12-15% annually |\n"
+                        response += "| 👥 Suitable For | Most investors seeking balanced risk-return |\n\n"
                     else:  # HIGH
-                        response += "- Volatility: ~25-40%\n- Expected Returns: ~15-20% annually (but can be volatile)\n- Suitable for: Long-term investors (10+ years), comfortable with market swings\n\n"
+                        response += "| 📉 Volatility | ~25-40% |\n"
+                        response += "| 💰 Expected Returns | ~15-20% annually (but can be volatile) |\n"
+                        response += "| 👥 Suitable For | Long-term investors (10+ years), comfortable with market swings |\n\n"
                     
                     response += "Now I'll select specific fund names that match your risk profile, currency, and geography preferences. This will happen automatically..."
                     

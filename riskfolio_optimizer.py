@@ -398,10 +398,13 @@ def risk_folio(
         weights_array = weights_array / np.sum(weights_array)  # Normalize to sum to 1
         
         # Create weights dictionary
+        # CRITICAL: Include ALL funds, even with small weights, so geography constraints can work
         weights_dict = {}
         for idx, weight in enumerate(weights_array):
-            if idx < len(fund_names) and weight > 0.001:  # Only include weights > 0.1%
-                weights_dict[fund_names[idx]] = round(float(weight) * 100, 2)
+            if idx < len(fund_names):
+                # Include all weights, even small ones (geography constraints will adjust)
+                if weight > 1e-6:  # Only exclude truly zero weights
+                    weights_dict[fund_names[idx]] = round(float(weight) * 100, 2)
         
         # Normalize to 100%
         total = sum(weights_dict.values())
@@ -526,24 +529,99 @@ def apply_geography_constraints(weights_dict, selected_funds, geography_constrai
     for geo, fund_list in geo_weights.items():
         current_splits[geo] = sum(weights_dict.get(f, 0) for f in fund_list)
     
-    # Adjust to meet targets
+    # CRITICAL FIX: If a geography has 0% current allocation but target > 0, 
+    # we need to allocate to funds from that geography
+    # First, ensure all funds from geographies with target > 0 are in weights_dict
     adjusted_weights = weights_dict.copy()
+    
+    # Add funds that are missing but should have allocation
+    for geo, target_pct in geography_constraints.items():
+        if geo in geo_weights and target_pct > 0:
+            fund_list = geo_weights[geo]
+            current_total = current_splits.get(geo, 0)
+            
+            # If this geography has no current allocation but should have some
+            if current_total == 0 and len(fund_list) > 0:
+                # Allocate equally to all funds in this geography
+                per_fund = target_pct / len(fund_list)
+                for fund_name in fund_list:
+                    if fund_name not in adjusted_weights:
+                        adjusted_weights[fund_name] = 0
+                    adjusted_weights[fund_name] += per_fund
+    
+    # Now adjust existing weights to meet targets
     for geo, target_pct in geography_constraints.items():
         if geo in geo_weights:
             fund_list = geo_weights[geo]
-            current_total = current_splits.get(geo, 0)
+            current_total = sum(adjusted_weights.get(f, 0) for f in fund_list)
             target_total = target_pct
             
-            if len(fund_list) > 0 and current_total > 0:
-                scale_factor = target_total / current_total if current_total > 0 else target_total / len(fund_list)
-                for fund_name in fund_list:
-                    if fund_name in adjusted_weights:
-                        adjusted_weights[fund_name] = adjusted_weights[fund_name] * scale_factor
+            if len(fund_list) > 0:
+                if current_total > 0:
+                    # Scale existing weights
+                    scale_factor = target_total / current_total
+                    for fund_name in fund_list:
+                        if fund_name in adjusted_weights:
+                            adjusted_weights[fund_name] = adjusted_weights[fund_name] * scale_factor
+                else:
+                    # No current allocation - distribute equally
+                    per_fund = target_total / len(fund_list)
+                    for fund_name in fund_list:
+                        if fund_name not in adjusted_weights:
+                            adjusted_weights[fund_name] = 0
+                        adjusted_weights[fund_name] = per_fund
     
-    # Normalize
+    # Remove weights that are too small (< 0.01%) but keep at least one fund per active geography
+    # First, identify which geographies should have allocation
+    active_geos = [geo for geo, pct in geography_constraints.items() if pct > 0]
+    
+    # Keep at least one fund per active geography
+    for geo in active_geos:
+        if geo in geo_weights:
+            fund_list = geo_weights[geo]
+            # Check if any fund from this geography is in adjusted_weights
+            has_fund = any(f in adjusted_weights and adjusted_weights[f] > 0.01 for f in fund_list)
+            if not has_fund and len(fund_list) > 0:
+                # Add the first fund with minimum allocation
+                adjusted_weights[fund_list[0]] = max(0.1, geography_constraints.get(geo, 0) / len(fund_list))
+    
+    # Remove very small weights (< 0.01%) but keep at least one per active geography
+    weights_to_remove = []
+    for fund_name, weight in adjusted_weights.items():
+        if weight < 0.01:
+            # Check if this is the only fund from its geography
+            fund_geo = None
+            for fund in selected_funds:
+                if fund["name"] == fund_name:
+                    fund_geo = fund["geography"]
+                    break
+            
+            if fund_geo:
+                # Check if there are other funds from this geography with > 0.01% weight
+                other_funds_exist = False
+                for other_fund in selected_funds:
+                    if other_fund["geography"] == fund_geo and other_fund["name"] != fund_name:
+                        if other_fund["name"] in adjusted_weights and adjusted_weights[other_fund["name"]] > 0.01:
+                            other_funds_exist = True
+                            break
+                
+                if other_funds_exist:
+                    weights_to_remove.append(fund_name)
+                # If no other funds exist, keep this one (minimum allocation)
+            else:
+                weights_to_remove.append(fund_name)
+    
+    for fund_name in weights_to_remove:
+        del adjusted_weights[fund_name]
+    
+    # Normalize to 100%
     total = sum(adjusted_weights.values())
     if total > 0:
         adjusted_weights = {k: round(v * 100 / total, 2) for k, v in adjusted_weights.items()}
+    else:
+        # Fallback: equal weights across all funds
+        equal_weight = 100 / len(selected_funds)
+        adjusted_weights = {fund["name"]: round(equal_weight, 2) for fund in selected_funds}
     
     return adjusted_weights
 

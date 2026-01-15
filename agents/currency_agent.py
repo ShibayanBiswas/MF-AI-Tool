@@ -61,12 +61,23 @@ DETAILED RESPONSE REQUIREMENTS:
 CRITICAL: Check context first - if currency is already set, skip to next agent immediately. Always provide educational, detailed responses."""
 
     def execute(self, user_message: str, context: Dict) -> Dict[str, Any]:
-        # Check if currency already set
+        # CRITICAL: Check if currency already set - if yes, immediately skip without asking
         if context.get("currency"):
+            # Check if we've already moved to next agent
+            if context.get("_moved_to_geography") or context.get("_moved_to_risk_assessment"):
+                return {
+                    "response": "",
+                    "updated_context": context,
+                    "next_agent": "geography" if context["currency"] == "USD" else "risk_assessment"
+                }
+            
+            # Currency is set, mark that we're moving forward
+            next_agent = "geography" if context["currency"] == "USD" else "risk_assessment"
+            context[f"_moved_to_{next_agent}"] = True
             return {
                 "response": "",
                 "updated_context": context,
-                "next_agent": "geography" if context["currency"] == "USD" else "risk_assessment"
+                "next_agent": next_agent
             }
         
         # Build messages with enhanced context and detailed system prompt
@@ -117,23 +128,29 @@ Provide detailed, informative responses explaining what each option means."""
                     
                     # Build detailed response based on currency
                     if currency == "USD":
-                        response = f"**Currency Selected: USD (US Dollars)** ✅\n\n"
-                        response += "**What this means:**\n"
-                        response += "- You can invest across multiple countries: USA, India, Japan, Europe, UK, and China\n"
-                        response += "- Access to international mutual funds and global diversification\n"
-                        response += "- Better risk distribution across different economies\n"
-                        response += "- Currency diversification benefits\n\n"
-                        response += "**Next Step:** I'll ask about your geography preferences to allocate your investments across different countries.\n\n"
-                        response += "This helps reduce country-specific risk and capture growth from different economic cycles."
+                        response = f"## 💵 Currency Selected: USD (US Dollars) ✅\n\n"
+                        response += "### What This Means:\n\n"
+                        response += "| Benefit | Description |\n"
+                        response += "|---------|-------------|\n"
+                        response += "| 🌍 Global Access | Invest across multiple countries: USA, India, Japan, Europe, UK, and China |\n"
+                        response += "| 📈 Diversification | Access to international mutual funds and global diversification |\n"
+                        response += "| ⚖️ Risk Distribution | Better risk distribution across different economies |\n"
+                        response += "| 💱 Currency Benefits | Currency diversification benefits |\n\n"
+                        response += "### 📍 Next Step:\n"
+                        response += "I'll ask about your geography preferences to allocate your investments across different countries.\n\n"
+                        response += "💡 This helps reduce country-specific risk and capture growth from different economic cycles."
                     else:  # INR
-                        response = f"**Currency Selected: INR (Indian Rupees)** ✅\n\n"
-                        response += "**What this means:**\n"
-                        response += "- All investments will be in **India mutual funds only** (India geography)\n"
-                        response += "- Access to Indian equity, debt, balanced, and ELSS (tax-saver) funds\n"
-                        response += "- Focus on India's growing economy and market\n"
-                        response += "- ELSS funds provide Section 80C tax benefits (up to ₹1.5 lakh deduction)\n\n"
-                        response += "**Next Step:** I'll assess your risk profile to understand your investment comfort level.\n\n"
-                        response += "This will help me recommend the right mix of funds for your goals."
+                        response = f"## 💰 Currency Selected: INR (Indian Rupees) ✅\n\n"
+                        response += "### What This Means:\n\n"
+                        response += "| Benefit | Description |\n"
+                        response += "|---------|-------------|\n"
+                        response += "| 🇮🇳 India Focus | All investments will be in India mutual funds only (India geography) |\n"
+                        response += "| 📊 Fund Types | Access to Indian equity, debt, balanced, and ELSS (tax-saver) funds |\n"
+                        response += "| 📈 Growth Potential | Focus on India's growing economy and market |\n"
+                        response += "| 💼 Tax Benefits | ELSS funds provide Section 80C tax benefits (up to ₹1.5 lakh deduction) |\n\n"
+                        response += "### 📍 Next Step:\n"
+                        response += "I'll assess your risk profile to understand your investment comfort level.\n\n"
+                        response += "💡 This will help me recommend the right mix of funds for your goals."
                     
                     return {
                         "response": response,

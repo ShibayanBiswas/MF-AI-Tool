@@ -183,14 +183,17 @@ Provide detailed, informative responses explaining portfolio characteristics."""
             response = "## 📊 Optimized Portfolio Weights\n\n"
             
             # Explain what optimization did
-            response += "**Optimization Complete!** ✅\n\n"
+            response += "## 🎉 Optimization Complete! ✅\n\n"
+            response += "### 💡 What I Did:\n"
             response += "I've calculated the optimal weight (percentage allocation) for each fund in your portfolio. "
-            response += "The optimization uses advanced mathematical models to balance risk and return based on your profile.\n\n"
+            response += "The optimization uses advanced mathematical models to balance risk and return based on your profile. 🧮\n\n"
             
             # Show fund allocation by category with explanations
             fund_counts = context.get("fund_counts", {})
             suggested_funds = context.get("suggested_funds", {})
-            response += "**Fund Allocation by Category:**\n"
+            response += "### 📊 Fund Allocation by Category\n\n"
+            response += "| Category | Number of Funds | Purpose |\n"
+            response += "|----------|-----------------|----------|\n"
             
             category_explanations = {
                 "debt": "Provides stability and capital preservation",
@@ -209,12 +212,12 @@ Provide detailed, informative responses explaining portfolio characteristics."""
                     actual_count = len(actual_funds)
                     total_funds += actual_count
                     explanation = category_explanations.get(category, "")
-                    response += f"- **{category_name}**: {actual_count} fund{'s' if actual_count != 1 else ''} - {explanation}\n"
+                    response += f"| {category_name} | {actual_count} fund{'s' if actual_count != 1 else ''} | {explanation} |\n"
             
-            response += f"\n**Total:** {total_funds} funds in your portfolio\n\n"
+            response += f"\n### 📦 Total: {total_funds} funds in your portfolio\n\n"
             
             # Show optimized weights
-            response += "**Optimized Fund Weights:**\n"
+            response += "### 💰 Optimized Fund Weights\n\n"
             response += "| Fund Name | Weight | What This Means |\n"
             response += "|-----------|--------|-----------------|\n"
             
@@ -235,7 +238,7 @@ Provide detailed, informative responses explaining portfolio characteristics."""
                 else:
                     weight_explanation += " (supporting allocation)"
                 
-                response += f"| **{fund_name}** | **{weight:.2f}%** | {weight_explanation} |\n"
+                response += f"| {fund_name} | {weight:.2f}% | {weight_explanation} |\n"
             
             response += "\n"
             
@@ -245,15 +248,28 @@ Provide detailed, informative responses explaining portfolio characteristics."""
             debt_weight = sum(weights.get(f.get("name", ""), 0) for f in suggested_funds.get("debt", []))
             balanced_weight = sum(weights.get(f.get("name", ""), 0) for f in suggested_funds.get("balanced", []))
             
-            response += "**Portfolio Insights:**\n"
-            response += f"- **Total Equity Allocation**: ~{equity_weight:.1f}% (growth-oriented)\n"
-            response += f"- **Total Debt Allocation**: ~{debt_weight:.1f}% (stability)\n"
+            response += "### 📈 Portfolio Insights\n\n"
+            response += "| Allocation Type | Percentage | Purpose |\n"
+            response += "|-----------------|------------|----------|\n"
+            response += f"| 📈 Total Equity Allocation | ~{equity_weight:.1f}% | Growth-oriented |\n"
+            response += f"| 🛡️ Total Debt Allocation | ~{debt_weight:.1f}% | Stability |\n"
             if balanced_weight > 0:
-                response += f"- **Balanced Funds**: ~{balanced_weight:.1f}% (balanced risk-return)\n"
+                response += f"| ⚖️ Balanced Funds | ~{balanced_weight:.1f}% | Balanced risk-return |\n"
+            response += "\n"
             
-            # Geography distribution if USD
+            # Geography distribution if USD - show ALL geographies with fund counts
             if context.get("currency") == "USD" and context.get("geography_constraints"):
-                response += "\n**Geographic Distribution:**\n"
+                response += "### 🌍 Geographic Distribution (Number of Funds & Allocation)\n\n"
+                
+                # Calculate fund counts by geography
+                geography_fund_counts = {}
+                for cat, funds in suggested_funds.items():
+                    for fund in funds:
+                        geo = fund.get("geography", "")
+                        if geo:
+                            geography_fund_counts[geo] = geography_fund_counts.get(geo, 0) + 1
+                
+                # Calculate allocation by geography
                 geo_allocation = {}
                 for cat, funds in suggested_funds.items():
                     for fund in funds:
@@ -261,38 +277,55 @@ Provide detailed, informative responses explaining portfolio characteristics."""
                         if geo:
                             geo_allocation[geo] = geo_allocation.get(geo, 0) + weights.get(fund.get("name", ""), 0)
                 
-                for geo, weight in sorted(geo_allocation.items(), key=lambda x: x[1], reverse=True):
-                    if weight > 0:
-                        response += f"- {geo}: ~{weight:.1f}%\n"
+                geo_flags = {
+                    'USA': '🇺🇸', 'India': '🇮🇳', 'Japan': '🇯🇵',
+                    'Europe': '🇪🇺', 'UK': '🇬🇧', 'China': '🇨🇳'
+                }
+                
+                response += "| Geography | Funds Selected | Allocation | Target |\n"
+                response += "|-----------|----------------|-----------|--------|\n"
+                
+                # Show all geographies from constraints
+                for geo, target_pct in sorted(context.get("geography_constraints", {}).items(), key=lambda x: x[1], reverse=True):
+                    if target_pct > 0:
+                        flag = geo_flags.get(geo, '🌍')
+                        fund_count = geography_fund_counts.get(geo, 0)
+                        actual_weight = geo_allocation.get(geo, 0)
+                        response += f"| {flag} {geo} | {fund_count} fund{'s' if fund_count != 1 else ''} | ~{actual_weight:.1f}% | {target_pct}% |\n"
+                response += "\n"
             
             # Expected characteristics
             primary_risk = context.get("primary_risk_bucket", "MEDIUM")
             volatility_target = context.get("volatility_target_pct", 25)
             
-            response += "\n**Expected Portfolio Characteristics:**\n"
-            response += f"- **Expected Volatility**: ~{volatility_target}% (your target)\n"
+            response += "### 📊 Expected Portfolio Characteristics\n\n"
+            response += "| Characteristic | Details |\n"
+            response += "|----------------|---------|\n"
+            response += f"| 📉 Expected Volatility | ~{volatility_target}% (your target) |\n"
             if primary_risk == "LOW":
-                response += "- **Expected Annual Returns**: ~8-12% (conservative estimate)\n"
+                response += "| 💰 Expected Annual Returns | ~8-12% (conservative estimate) |\n"
             elif primary_risk == "MEDIUM":
-                response += "- **Expected Annual Returns**: ~12-15% (balanced estimate)\n"
+                response += "| 💰 Expected Annual Returns | ~12-15% (balanced estimate) |\n"
             else:
-                response += "- **Expected Annual Returns**: ~15-20% (aggressive estimate, can be volatile)\n"
+                response += "| 💰 Expected Annual Returns | ~15-20% (aggressive estimate, can be volatile) |\n"
             
-            response += f"- **Risk Level**: {primary_risk} risk profile\n"
+            response += f"| ⚠️ Risk Level | {primary_risk} risk profile |\n"
             response += "\n"
             
             # Explanation
-            response += "**What This Means:**\n"
+            response += "### 💡 What This Means\n\n"
             response += "This portfolio is optimized to balance risk and return based on your profile. "
             response += "Higher weights are allocated to funds that better match your risk tolerance and constraints. "
-            response += "The allocation considers diversification across categories and geographies to reduce risk.\n\n"
+            response += "The allocation considers diversification across categories and geographies to reduce risk. 🎯\n\n"
             
             # Next steps
-            response += "**Next Steps:**\n"
-            response += "1. **Review the weights** - These are recommendations based on optimization\n"
-            response += "2. **Consider rebalancing** - Review annually to maintain your target allocation\n"
-            response += "3. **Monitor performance** - Track how your portfolio performs over time\n"
-            response += "4. **Adjust if needed** - You can modify allocations based on changing goals or risk tolerance"
+            response += "### 📋 Next Steps\n\n"
+            response += "| Step | Action |\n"
+            response += "|------|--------|\n"
+            response += "| 1️⃣ Review | Review the weights - These are recommendations based on optimization |\n"
+            response += "| 2️⃣ Rebalance | Consider rebalancing - Review annually to maintain your target allocation |\n"
+            response += "| 3️⃣ Monitor | Monitor performance - Track how your portfolio performs over time |\n"
+            response += "| 4️⃣ Adjust | Adjust if needed - You can modify allocations based on changing goals or risk tolerance |\n"
             
             return {
                 "response": response,
@@ -312,58 +345,76 @@ Provide detailed, informative responses explaining portfolio characteristics."""
         summary = "## 📋 Portfolio Summary & Optimization Ready\n\n"
         
         # Explain what optimization means
-        summary += "**What is Portfolio Optimization?**\n"
+        summary += "### 💡 What is Portfolio Optimization?\n\n"
         summary += "Portfolio optimization calculates the ideal weight (percentage allocation) for each fund in your portfolio. "
         summary += "It uses advanced mathematical models to maximize returns while staying within your risk tolerance. "
-        summary += "The optimizer considers your risk profile, volatility targets, and constraints to find the best balance.\n\n"
+        summary += "The optimizer considers your risk profile, volatility targets, and constraints to find the best balance. 🧮\n\n"
         
         # Currency with explanation
         currency = context.get('currency', 'N/A')
-        summary += f"**Currency:** {currency}\n"
+        summary += f"### 💵 Currency: {currency}\n"
         if currency == "INR":
-            summary += "   → Investing in Indian Rupees means all funds will be India-focused mutual funds.\n"
+            summary += "  → 🇮🇳 Investing in Indian Rupees means all funds will be India-focused mutual funds.\n"
         elif currency == "USD":
-            summary += "   → Investing in US Dollars allows global diversification across multiple countries.\n"
+            summary += "  → 🌍 Investing in US Dollars allows global diversification across multiple countries.\n"
         summary += "\n"
         
         # Geography (if USD) with detailed explanation
         if context.get("currency") == "USD" and context.get("geography_constraints"):
-            geo_str = ", ".join([f"{k} {v}%" for k, v in context['geography_constraints'].items() if v > 0])
-            summary += f"**Geography Allocation:** {geo_str}\n"
-            summary += "   → This allocation spreads your investments across different countries to reduce country-specific risk and capture global growth opportunities.\n"
+            summary += "### 🌍 Geography Allocation\n\n"
+            summary += "| Geography | Allocation | Purpose |\n"
+            summary += "|-----------|------------|----------|\n"
+            geo_flags = {
+                'USA': '🇺🇸', 'India': '🇮🇳', 'Japan': '🇯🇵',
+                'Europe': '🇪🇺', 'UK': '🇬🇧', 'China': '🇨🇳'
+            }
+            geo_descriptions = {
+                'USA': 'Largest economy, tech-heavy, innovation focus',
+                'India': 'Emerging market, high growth potential',
+                'Japan': 'Stable, technology & manufacturing',
+                'Europe': 'Diversified developed markets',
+                'UK': 'Financial hub, stable market',
+                'China': 'Manufacturing powerhouse, high growth'
+            }
+            for geo, pct in sorted(context['geography_constraints'].items(), key=lambda x: x[1], reverse=True):
+                if pct > 0:
+                    flag = geo_flags.get(geo, '🌍')
+                    desc = geo_descriptions.get(geo, 'Diversified market')
+                    summary += f"| {flag} {geo} | {pct}% | {desc} |\n"
+            summary += "\n"
+            summary += "  → 💡 This allocation spreads your investments across different countries to reduce country-specific risk and capture global growth opportunities.\n\n"
         elif context.get("currency") == "INR":
-            summary += "**Geography:** India only\n"
-            summary += "   → All investments will be in Indian mutual funds, providing exposure to India's growing economy.\n"
-        summary += "\n"
+            summary += "### 🌍 Geography: India only\n"
+            summary += "  → 🇮🇳 All investments will be in Indian mutual funds, providing exposure to India's growing economy.\n\n"
         
         # Risk with detailed explanation
         primary_risk = context.get('primary_risk_bucket', 'N/A')
         sub_risk = context.get('sub_risk_bucket', 'N/A')
-        summary += f"**Risk Profile:** {primary_risk} - {sub_risk}\n"
+        summary += f"### 🎯 Risk Profile: {primary_risk} - {sub_risk}\n"
         risk_explanations = {
-            "LOW": "Conservative approach prioritizing stability and capital preservation",
-            "MEDIUM": "Balanced approach seeking moderate growth with some stability",
-            "HIGH": "Aggressive approach targeting higher returns with higher volatility"
+            "LOW": "🛡️ Conservative approach prioritizing stability and capital preservation",
+            "MEDIUM": "⚖️ Balanced approach seeking moderate growth with some stability",
+            "HIGH": "🚀 Aggressive approach targeting higher returns with higher volatility"
         }
-        summary += f"   → {risk_explanations.get(primary_risk, 'Balanced risk-return profile')}\n"
-        summary += "\n"
+        summary += f"  → {risk_explanations.get(primary_risk, 'Balanced risk-return profile')}\n\n"
         
         # Volatility/Drawdown with explanation
         if context.get("volatility_target_pct"):
             vol = context['volatility_target_pct']
-            summary += f"**Volatility Target:** {vol}%\n"
-            summary += f"   → This means your portfolio value could swing up or down by approximately {vol}% in value. "
-            summary += f"A {vol}% volatility target indicates you're comfortable with {'moderate' if vol < 30 else 'higher'} market fluctuations.\n"
+            summary += f"### 📊 Volatility Target: {vol}%\n"
+            summary += f"  → 💡 This means your portfolio value could swing up or down by approximately {vol}% in value. "
+            summary += f"A {vol}% volatility target indicates you're comfortable with {'moderate' if vol < 30 else 'higher'} market fluctuations.\n\n"
         if context.get("drawdown_target_pct"):
             dd = context['drawdown_target_pct']
-            summary += f"**Drawdown Target:** {dd}%\n"
-            summary += f"   → This is the maximum temporary drop you're comfortable with. A {dd}% drawdown means if your portfolio peaks at ₹100, you're okay if it temporarily drops to ₹{100-dd}.\n"
-        summary += "\n"
+            summary += f"### 📉 Drawdown Target: {dd}%\n"
+            summary += f"  → 💡 This is the maximum temporary drop you're comfortable with. A {dd}% drawdown means if your portfolio peaks at ₹100, you're okay if it temporarily drops to ₹{100-dd}.\n\n"
         
         # Fund counts with detailed category explanations
         fund_counts = context.get("fund_counts", {})
         suggested_funds = context.get("suggested_funds", {})
-        summary += "**Fund Allocation by Category:**\n"
+        summary += "### 📊 Fund Allocation by Category\n\n"
+        summary += "| Category | Number of Funds | Purpose |\n"
+        summary += "|----------|-----------------|----------|\n"
         
         category_explanations = {
             "debt": "Debt funds provide stability and capital preservation",
@@ -382,31 +433,33 @@ Provide detailed, informative responses explaining portfolio characteristics."""
                 actual_count = len(actual_funds)
                 total_funds += actual_count
                 explanation = category_explanations.get(category, "Diversified investment")
-                summary += f"- **{category_name}**: {actual_count} fund{'s' if actual_count != 1 else ''} - {explanation}\n"
+                summary += f"| {category_name} | {actual_count} fund{'s' if actual_count != 1 else ''} | {explanation} |\n"
         
-        summary += f"\n**Total Funds:** {total_funds} funds across {len([c for c, v in fund_counts.items() if v and v > 0])} categories\n"
+        summary += f"\nTotal Funds: {total_funds} funds across {len([c for c, v in fund_counts.items() if v and v > 0])} categories\n"
         summary += "\n"
         
         # Expected portfolio characteristics
-        summary += "**Expected Portfolio Characteristics:**\n"
+        summary += "### 📈 Expected Portfolio Characteristics\n\n"
+        summary += "| Characteristic | Details |\n"
+        summary += "|----------------|---------|\n"
         if primary_risk == "LOW":
-            summary += "- Expected Annual Returns: ~8-12%\n"
-            summary += "- Expected Volatility: ~10-15%\n"
-            summary += "- Suitability: Conservative investors, near retirement, capital preservation focus\n"
+            summary += "| 💰 Expected Annual Returns | ~8-12% |\n"
+            summary += "| 📉 Expected Volatility | ~10-15% |\n"
+            summary += "| 👥 Suitability | Conservative investors, near retirement, capital preservation focus |\n"
         elif primary_risk == "MEDIUM":
-            summary += "- Expected Annual Returns: ~12-15%\n"
-            summary += "- Expected Volatility: ~15-25%\n"
-            summary += "- Suitability: Most investors seeking balanced growth with some stability\n"
+            summary += "| 💰 Expected Annual Returns | ~12-15% |\n"
+            summary += "| 📉 Expected Volatility | ~15-25% |\n"
+            summary += "| 👥 Suitability | Most investors seeking balanced growth with some stability |\n"
         else:  # HIGH
-            summary += "- Expected Annual Returns: ~15-20% (can be volatile)\n"
-            summary += "- Expected Volatility: ~25-40%\n"
-            summary += "- Suitability: Long-term investors (10+ years), comfortable with market swings\n"
+            summary += "| 💰 Expected Annual Returns | ~15-20% (can be volatile) |\n"
+            summary += "| 📉 Expected Volatility | ~25-40% |\n"
+            summary += "| 👥 Suitability | Long-term investors (10+ years), comfortable with market swings |\n"
         
         summary += "\n"
-        summary += "**Ready to optimize your portfolio?**\n"
+        summary += "### 🚀 Ready to optimize your portfolio?\n\n"
         summary += "I'll calculate the optimal weights for each fund based on your risk profile, volatility targets, and constraints. "
-        summary += "This will help maximize your returns while staying within your risk tolerance.\n\n"
-        summary += "Say **'yes'**, **'optimize'**, or **'proceed'** to generate your optimized portfolio weights."
+        summary += "This will help maximize your returns while staying within your risk tolerance. 🎯\n\n"
+        summary += "💬 Say 'yes', 'optimize', or 'proceed' to generate your optimized portfolio weights."
         
         return summary
     

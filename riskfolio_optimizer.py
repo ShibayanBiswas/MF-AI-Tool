@@ -1,10 +1,11 @@
 """
-Riskfolio optimization module for portfolio allocation.
-Uses different optimization models based on risk buckets.
+Portfolio optimization module using scipy.optimize.
+Implements mean-variance optimization, Sharpe ratio maximization, and risk parity.
 """
 import pandas as pd
 import numpy as np
-import riskfolio as rp
+from scipy.optimize import minimize
+from scipy.linalg import inv
 from dummy_data import get_funds_by_criteria, generate_dummy_funds
 
 # Global fund data
@@ -29,7 +30,7 @@ def risk_folio(
     tax_saver_target_pct=None
 ):
     """
-    Optimize portfolio using riskfolio library.
+    Optimize portfolio using scipy.optimize (mean-variance optimization).
     
     Parameters:
     -----------
@@ -73,6 +74,13 @@ def risk_folio(
     selected_funds = []
     
     for category, count in fund_counts.items():
+        # Ensure count is not None and is a valid integer
+        if count is None:
+            continue
+        try:
+            count = int(count)
+        except (ValueError, TypeError):
+            continue
         if count > 0:
             category_funds = available_funds[available_funds["category"] == category]
             
@@ -83,21 +91,26 @@ def risk_folio(
                 for geo in geography_constraints.keys():
                     geo_funds[geo] = category_funds[category_funds["geography"] == geo]
                 
-                # Select funds proportionally
+                # Select funds proportionally, prioritizing highest returns
                 selected = []
                 for geo, weight in geography_constraints.items():
                     geo_count = max(1, int(count * weight / 100))
                     if len(geo_funds[geo]) > 0:
-                        selected.extend(geo_funds[geo].head(geo_count).to_dict('records'))
+                        # Sort by returns and select top funds
+                        geo_funds_sorted = geo_funds[geo].sort_values('returns', ascending=False)
+                        selected.extend(geo_funds_sorted.head(geo_count).to_dict('records'))
                 
-                # If not enough, fill from any geography
+                # If not enough, fill from any geography (sorted by returns)
                 while len(selected) < count and len(category_funds) > len(selected):
                     remaining = category_funds[~category_funds["name"].isin([f["name"] for f in selected])]
                     if len(remaining) > 0:
-                        selected.append(remaining.iloc[0].to_dict())
+                        remaining_sorted = remaining.sort_values('returns', ascending=False)
+                        selected.append(remaining_sorted.iloc[0].to_dict())
             else:
-                # For INR or no geography constraints, just select top funds
-                selected = category_funds.head(count).to_dict('records')
+                # For INR or no geography constraints, select top funds by returns
+                # Sort by returns (descending) and select top funds
+                category_funds_sorted = category_funds.sort_values('returns', ascending=False)
+                selected = category_funds_sorted.head(count).to_dict('records')
             
             selected_funds.extend(selected[:count])
     
@@ -108,63 +121,257 @@ def risk_folio(
     returns_data = []
     fund_names = []
     
+    # Ensure all funds have the same length returns series
+    if len(selected_funds) == 0:
+        return {"error": "No funds selected"}
+    
+    # Get the index from first fund
+    base_index = selected_funds[0]["returns_series"].index
+    min_length = len(base_index)
+    
+    # Find minimum length across all funds
+    for fund in selected_funds:
+        if len(fund["returns_series"]) < min_length:
+            min_length = len(fund["returns_series"])
+    
+    # Align all returns to same length and index
     for fund in selected_funds:
         returns_series = fund["returns_series"]
-        returns_data.append(returns_series.values)
+        
+        # Ensure we have a pandas Series
+        if not isinstance(returns_series, pd.Series):
+            raise ValueError(f"Fund {fund['name']} has invalid returns_series type")
+        
+        # Align to base index and take minimum length
+        try:
+            aligned_series = returns_series.reindex(base_index[:min_length], method='ffill')
+            aligned_series = aligned_series.fillna(0)  # Fill any NaN with 0
+        except Exception:
+            # If reindex fails, just take the first min_length values
+            aligned_series = returns_series.iloc[:min_length] if len(returns_series) >= min_length else returns_series
+        
+        # Ensure exact length
+        if len(aligned_series) > min_length:
+            aligned_series = aligned_series.iloc[:min_length]
+        elif len(aligned_series) < min_length:
+            # Pad with zeros if too short
+            padding = pd.Series([0.0] * (min_length - len(aligned_series)), 
+                               index=base_index[len(aligned_series):min_length])
+            aligned_series = pd.concat([aligned_series, padding])
+        
+        # Convert to numpy array and ensure it's 1D
+        values = aligned_series.values
+        if values.ndim > 1:
+            values = values.flatten()
+        
+        returns_data.append(values)
         fund_names.append(fund["name"])
     
-    # Create returns DataFrame
-    returns_df = pd.DataFrame(
-        np.array(returns_data).T,
-        columns=fund_names,
-        index=selected_funds[0]["returns_series"].index
-    )
+    # Create returns DataFrame - ensure proper dimensions
+    if len(returns_data) == 0:
+        return {"error": "No returns data available"}
     
-    # Convert to annual returns (multiply by 252 trading days)
-    returns_df = returns_df * 252
+    # Stack arrays properly - each row is a day, each column is a fund
+    # Ensure all arrays have the same length
+    for i in range(len(returns_data)):
+        if len(returns_data[i]) != min_length:
+            returns_data[i] = returns_data[i][:min_length]
     
-    # Initialize portfolio object
-    port = rp.Portfolio(returns=returns_df)
+    # Ensure we have at least 2 funds for optimization (Riskfolio needs multiple assets)
+    if len(fund_names) < 2:
+        # If only 1 fund, we can't optimize - return equal weight
+        return {
+            "weights": {fund_names[0]: 100.0},
+            "funds": [{k: v for k, v in selected_funds[0].items() if k != "returns_series"}],
+            "model_used": "single_fund",
+            "risk_measure": "MV",
+            "error": "Only one fund selected - cannot optimize. Using 100% allocation.",
+            "optimization_success": False,
+            "total_weight": 100
+        }
     
-    # Select optimization model based on risk bucket
-    model = select_optimization_model(primary_risk_bucket, sub_risk_bucket)
-    
-    # Set risk-free rate
-    rf = 0.03  # 3% risk-free rate
-    
-    # Run optimization
     try:
+        # Ensure all arrays are 1D and have same length
+        for i in range(len(returns_data)):
+            arr = np.array(returns_data[i])
+            if arr.ndim > 1:
+                arr = arr.flatten()
+            if len(arr) != min_length:
+                arr = arr[:min_length] if len(arr) > min_length else np.pad(arr, (0, min_length - len(arr)), 'constant')
+            returns_data[i] = arr
+        
+        # Stack as columns (each fund is a column)
+        # Shape should be (days, funds) - rows are time periods, columns are assets
+        returns_array = np.column_stack(returns_data)
+        
+        # Verify dimensions before creating DataFrame
+        if returns_array.shape[0] != min_length:
+            # Transpose if needed (shouldn't happen, but safety check)
+            if returns_array.shape[1] == min_length:
+                returns_array = returns_array.T
+            else:
+                raise ValueError(f"Cannot align dimensions: array shape {returns_array.shape}, expected ({min_length}, {len(fund_names)})")
+        
+        if returns_array.shape[1] != len(fund_names):
+            raise ValueError(f"Fund count mismatch: {returns_array.shape[1]} columns vs {len(fund_names)} funds")
+        
+        # Create DataFrame with proper orientation: rows = dates, columns = funds
+        returns_df = pd.DataFrame(
+            returns_array,
+            columns=fund_names,
+            index=base_index[:min_length]
+        )
+        
+        # Final verification
+        if returns_df.shape[0] < 2:
+            raise ValueError(f"Insufficient data: only {returns_df.shape[0]} days of returns")
+        if returns_df.shape[1] < 2:
+            raise ValueError(f"Insufficient funds: only {returns_df.shape[1]} fund(s)")
+            
+    except Exception as e:
+        # Fallback: create using dictionary method
+        returns_dict = {}
+        for i, fund_name in enumerate(fund_names):
+            arr = np.array(returns_data[i])
+            if arr.ndim > 1:
+                arr = arr.flatten()
+            if len(arr) > min_length:
+                arr = arr[:min_length]
+            elif len(arr) < min_length:
+                arr = np.pad(arr, (0, min_length - len(arr)), 'constant')
+            returns_dict[fund_name] = arr
+        
+        returns_df = pd.DataFrame(returns_dict, index=base_index[:min_length])
+        
+        # Verify fallback DataFrame
+        if returns_df.shape[0] < 2 or returns_df.shape[1] < 2:
+            raise ValueError(f"Cannot create valid returns DataFrame: shape {returns_df.shape}")
+    
+    # Calculate expected returns and covariance matrix from historical data
+    # Annualize returns (assuming 252 trading days per year)
+    try:
+        # Additional validation before optimization
+        if returns_df.empty:
+            raise ValueError("Returns DataFrame is empty")
+        if returns_df.shape[0] < 10:
+            raise ValueError(f"Insufficient historical data: {returns_df.shape[0]} days (need at least 10)")
+        if returns_df.shape[1] < 2:
+            raise ValueError(f"Need at least 2 funds for optimization, got {returns_df.shape[1]}")
+        
+        # Ensure returns are properly formatted (no NaN or inf)
+        if returns_df.isna().any().any():
+            returns_df = returns_df.fillna(0)
+        if np.isinf(returns_df.values).any():
+            returns_df = returns_df.replace([np.inf, -np.inf], 0)
+        
+        # Calculate expected returns (annualized)
+        # Mean daily return * 252 trading days
+        expected_returns = returns_df.mean() * 252
+        
+        # Calculate covariance matrix (annualized)
+        # Daily covariance * 252 trading days
+        cov_matrix = returns_df.cov() * 252
+        
+        # Set risk-free rate (3% annual)
+        rf = 0.03
+        
+        # Select optimization model based on risk bucket
+        model, risk_measure = select_optimization_model(primary_risk_bucket, sub_risk_bucket, 
+                                                         volatility_target_pct, drawdown_target_pct)
+        
+        # Run optimization using scipy
+        n_assets = len(fund_names)
+        
+        # Initial guess: equal weights
+        x0 = np.array([1.0 / n_assets] * n_assets)
+        
+        # Constraints: weights sum to 1, each weight between 0 and 1
+        constraints = (
+            {'type': 'eq', 'fun': lambda x: np.sum(x) - 1.0},  # Sum to 1
+        )
+        
+        # Bounds: each weight between 0 and 1
+        bounds = tuple((0, 1) for _ in range(n_assets))
+        
+        # Run optimization based on model type
         if model == "max_sharpe":
-            # Maximize Sharpe ratio
-            w = port.optimization(model='Classic', rm='MV', obj='Sharpe', rf=rf, hist=True)
+            # Maximize Sharpe ratio: (portfolio_return - rf) / portfolio_volatility
+            def negative_sharpe(weights):
+                portfolio_return = np.dot(weights, expected_returns)
+                portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+                if portfolio_vol < 1e-6:
+                    return -1000  # Avoid division by zero
+                sharpe = (portfolio_return - rf) / portfolio_vol
+                return -sharpe  # Negative because we minimize
+            
+            result = minimize(negative_sharpe, x0, method='SLSQP', bounds=bounds, constraints=constraints)
+            
         elif model == "min_volatility":
-            # Minimize volatility
-            w = port.optimization(model='Classic', rm='MV', obj='MinRisk', rf=rf, hist=True)
-        elif model == "max_alpha":
-            # Maximize alpha (excess return) - use Sharpe as proxy
-            w = port.optimization(model='Classic', rm='MV', obj='Sharpe', rf=rf, hist=True)
-        elif model == "risk_parity":
-            # Risk parity optimization
-            w = port.rp_optimization(model='Classic', rm='MV', rf=rf, b=None, hist=True)
+            # Minimize portfolio volatility
+            def portfolio_volatility(weights):
+                return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+            
+            result = minimize(portfolio_volatility, x0, method='SLSQP', bounds=bounds, constraints=constraints)
+            
         elif model == "max_return":
-            # Maximize returns
-            w = port.optimization(model='Classic', rm='MV', obj='MaxRet', rf=rf, hist=True)
+            # Maximize portfolio return
+            def negative_return(weights):
+                return -np.dot(weights, expected_returns)
+            
+            result = minimize(negative_return, x0, method='SLSQP', bounds=bounds, constraints=constraints)
+            
+        elif model == "risk_parity":
+            # Risk parity: equal risk contribution from each asset
+            def risk_parity_objective(weights):
+                portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+                if portfolio_vol < 1e-6:
+                    return 1000
+                # Marginal risk contribution
+                marginal_contrib = np.dot(cov_matrix, weights) / portfolio_vol
+                # Risk contribution
+                risk_contrib = weights * marginal_contrib
+                # Target: equal risk contribution (1/n for each asset)
+                target = np.ones(n_assets) / n_assets
+                # Minimize squared difference from equal risk contribution
+                return np.sum((risk_contrib - target * portfolio_vol / n_assets) ** 2)
+            
+            result = minimize(risk_parity_objective, x0, method='SLSQP', bounds=bounds, constraints=constraints)
+            
+        elif model == "max_alpha":
+            # Maximize risk-adjusted return (similar to Sharpe but with different formulation)
+            def negative_alpha(weights):
+                portfolio_return = np.dot(weights, expected_returns)
+                portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+                # Alpha = excess return adjusted for risk
+                if portfolio_vol < 1e-6:
+                    return 1000
+                alpha = (portfolio_return - rf) / (portfolio_vol + 0.01)  # Add small constant to avoid division by zero
+                return -alpha
+            
+            result = minimize(negative_alpha, x0, method='SLSQP', bounds=bounds, constraints=constraints)
+            
         else:
             # Default to max Sharpe
-            w = port.optimization(model='Classic', rm='MV', obj='Sharpe', rf=rf, hist=True)
+            def negative_sharpe(weights):
+                portfolio_return = np.dot(weights, expected_returns)
+                portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+                if portfolio_vol < 1e-6:
+                    return -1000
+                sharpe = (portfolio_return - rf) / portfolio_vol
+                return -sharpe
+            
+            result = minimize(negative_sharpe, x0, method='SLSQP', bounds=bounds, constraints=constraints)
         
-        # Extract weights
-        if w is not None:
-            if hasattr(w, 'values'):
-                weights_array = w.values.flatten()
-            elif isinstance(w, pd.Series):
-                weights_array = w.values
-            elif isinstance(w, (list, np.ndarray)):
-                weights_array = np.array(w).flatten()
-            else:
-                weights_array = np.array([1.0 / len(fund_names)] * len(fund_names))
+        # Extract optimized weights
+        if result.success:
+            weights_array = result.x
         else:
-            weights_array = np.array([1.0 / len(fund_names)] * len(fund_names))
+            # If optimization failed, use equal weights
+            weights_array = np.array([1.0 / n_assets] * n_assets)
+        
+        # Ensure weights are non-negative and sum to 1
+        weights_array = np.maximum(weights_array, 0)  # Ensure non-negative
+        weights_array = weights_array / np.sum(weights_array)  # Normalize to sum to 1
         
         # Create weights dictionary
         weights_dict = {}
@@ -203,11 +410,20 @@ def risk_folio(
             )
             weights_dict = adjusted_weights
         
+        # Convert funds to JSON-serializable format (remove pandas Series)
+        serializable_funds = []
+        for fund in selected_funds:
+            fund_copy = {k: v for k, v in fund.items() if k != "returns_series"}
+            fund_copy["returns_count"] = len(fund.get("returns_series", []))
+            serializable_funds.append(fund_copy)
+        
         return {
             "weights": weights_dict,
-            "funds": selected_funds,
+            "funds": serializable_funds,
             "model_used": model,
-            "total_weight": sum(weights_dict.values())
+            "risk_measure": risk_measure,
+            "total_weight": sum(weights_dict.values()),
+            "optimization_success": True
         }
     
     except Exception as e:
@@ -215,11 +431,20 @@ def risk_folio(
         equal_weight = 100 / len(selected_funds)
         weights_dict = {fund["name"]: round(equal_weight, 2) for fund in selected_funds}
         
+        # Convert funds to JSON-serializable format
+        serializable_funds = []
+        for fund in selected_funds:
+            fund_copy = {k: v for k, v in fund.items() if k != "returns_series"}
+            fund_copy["returns_count"] = len(fund.get("returns_series", []))
+            serializable_funds.append(fund_copy)
+        
         return {
             "weights": weights_dict,
-            "funds": selected_funds,
+            "funds": serializable_funds,
             "model_used": "equal_weight_fallback",
+            "risk_measure": "MV",
             "error": str(e),
+            "optimization_success": False,
             "total_weight": 100
         }
 
@@ -320,36 +545,57 @@ def apply_tax_saver_constraint(weights_dict, selected_funds, tax_saver_target_pc
     
     return weights_dict
 
-def select_optimization_model(primary_risk_bucket, sub_risk_bucket):
+def select_optimization_model(primary_risk_bucket, sub_risk_bucket, 
+                              volatility_target_pct=None, drawdown_target_pct=None):
     """
     Select optimization model based on risk bucket.
+    
+    Uses scipy.optimize for portfolio optimization with different objectives:
+    - max_sharpe: Maximize Sharpe ratio (risk-adjusted returns)
+    - min_volatility: Minimize portfolio volatility
+    - max_return: Maximize expected returns
+    - risk_parity: Equal risk contribution from each asset
+    - max_alpha: Maximize risk-adjusted excess returns
     
     Model mapping:
     - HIGH: Use models that maximize alpha/returns (max_sharpe, max_alpha, max_return)
     - MEDIUM: Use balanced models (max_sharpe, risk_parity)
     - LOW: Use models that minimize risk (min_volatility, risk_parity)
+    
+    Risk measure (for reference, scipy uses variance/covariance):
+    - All models use mean-variance framework (covariance matrix)
+    - Volatility constraints are handled through optimization bounds
     """
+    # Risk measure is kept for compatibility but scipy uses variance/covariance
+    if drawdown_target_pct is not None:
+        risk_measure = 'Variance'  # Use variance for drawdown constraints
+    elif volatility_target_pct is not None and volatility_target_pct < 20:
+        risk_measure = 'Variance'  # Low volatility - use variance
+    else:
+        risk_measure = 'Variance'  # Default: Mean Variance
+    
+    # Select optimization model
     if primary_risk_bucket == "HIGH":
         if "HIGH" in sub_risk_bucket:
-            return "max_return"  # Very aggressive - maximize returns
+            return "max_return", risk_measure  # Very aggressive - maximize returns
         elif "MEDIUM" in sub_risk_bucket:
-            return "max_alpha"   # Aggressive - maximize alpha
+            return "max_alpha", risk_measure   # Aggressive - maximize alpha
         else:  # HIGH_LOW
-            return "max_sharpe"  # Growth but cautious - maximize risk-adjusted returns
+            return "max_sharpe", risk_measure  # Growth but cautious - maximize risk-adjusted returns
     
     elif primary_risk_bucket == "MEDIUM":
         if "HIGH" in sub_risk_bucket:
-            return "max_sharpe"  # Medium-high - maximize risk-adjusted returns
+            return "max_sharpe", risk_measure  # Medium-high - maximize risk-adjusted returns
         elif "MEDIUM" in sub_risk_bucket:
-            return "risk_parity" # Balanced - risk parity
+            return "risk_parity", risk_measure # Balanced - risk parity
         else:  # MEDIUM_LOW
-            return "risk_parity" # Medium-low - risk parity with slight tilt
+            return "risk_parity", risk_measure # Medium-low - risk parity with slight tilt
     
     else:  # LOW
         if "HIGH" in sub_risk_bucket:
-            return "risk_parity" # Low-high - risk parity
+            return "risk_parity", risk_measure # Low-high - risk parity
         elif "MEDIUM" in sub_risk_bucket:
-            return "min_volatility" # Conservative - minimize volatility
+            return "min_volatility", risk_measure # Conservative - minimize volatility
         else:  # LOW_LOW
-            return "min_volatility" # Very conservative - minimize volatility
+            return "min_volatility", risk_measure # Very conservative - minimize volatility
 

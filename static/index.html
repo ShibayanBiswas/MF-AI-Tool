@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mutual Fund Portfolio Advisor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -12,7 +16,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
@@ -23,43 +27,93 @@
 
         .container {
             width: 100%;
-            max-width: 900px;
+            max-width: 1000px;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border-radius: 24px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 90vh;
+            height: 92vh;
         }
 
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 25px 30px;
-            text-align: center;
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            flex: 1;
         }
 
         .header h1 {
+            font-family: 'Poppins', sans-serif;
             font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 5px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
         }
 
         .header p {
+            font-size: 15px;
+            opacity: 0.95;
+            font-weight: 400;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .header-btn {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
             font-size: 14px;
-            opacity: 0.9;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 30px;
-            background: #f8f9fa;
+            padding: 32px;
+            background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+            scroll-behavior: smooth;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
         }
 
         .chat-message {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             display: flex;
             animation: fadeIn 0.3s ease-in;
         }
@@ -76,11 +130,13 @@
         }
 
         .message-bubble {
-            max-width: 75%;
-            padding: 15px 20px;
-            border-radius: 18px;
+            max-width: 80%;
+            padding: 18px 24px;
+            border-radius: 20px;
             word-wrap: break-word;
-            line-height: 1.5;
+            line-height: 1.6;
+            font-size: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         .user-message {
@@ -90,453 +146,1257 @@
         .user-message .message-bubble {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-bottom-right-radius: 4px;
-        }
-
-        .bot-message {
-            justify-content: flex-start;
+            border-bottom-right-radius: 6px;
+            font-weight: 500;
         }
 
         .bot-message .message-bubble {
             background: white;
-            color: #333;
-            border: 1px solid #e0e0e0;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            color: #2d3748;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
         }
 
-        .input-container {
-            padding: 20px 30px;
+        /* Enhanced Markdown Formatting */
+        .bot-message .message-bubble h1,
+        .bot-message .message-bubble h2,
+        .bot-message .message-bubble h3 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            color: #1a202c;
+            line-height: 1.3;
+        }
+
+        .bot-message .message-bubble h1 {
+            font-size: 24px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .bot-message .message-bubble h2 {
+            font-size: 20px;
+            color: #667eea;
+        }
+
+        .bot-message .message-bubble h3 {
+            font-size: 18px;
+            color: #4a5568;
+        }
+
+        .bot-message .message-bubble p {
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+
+        .bot-message .message-bubble strong {
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .bot-message .message-bubble em {
+            font-style: italic;
+            color: #4a5568;
+        }
+
+        .bot-message .message-bubble ul,
+        .bot-message .message-bubble ol {
+            margin: 12px 0;
+            padding-left: 24px;
+            line-height: 1.8;
+        }
+
+        .bot-message .message-bubble li {
+            margin-bottom: 8px;
+        }
+
+        .bot-message .message-bubble ul li::marker {
+            color: #667eea;
+        }
+
+        .bot-message .message-bubble table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .bot-message .message-bubble table th,
+        .bot-message .message-bubble table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .bot-message .message-bubble table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .bot-message .message-bubble table td {
             background: white;
-            border-top: 1px solid #e0e0e0;
-            display: flex;
-            gap: 10px;
+            font-size: 14px;
         }
 
-        .input-wrapper {
-            flex: 1;
+        .bot-message .message-bubble table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .bot-message .message-bubble table tr:hover td {
+            background: #f7fafc;
+        }
+
+        .bot-message .message-bubble code {
+            background: #f7fafc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #e53e3e;
+        }
+
+        .bot-message .message-bubble blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 16px;
+            margin: 16px 0;
+            color: #4a5568;
+            font-style: italic;
+        }
+
+        /* Enhanced Markdown Styling */
+        .bot-message .message-bubble .markdown-bold {
+            font-weight: 700;
+            color: #1a202c;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .bot-message .message-bubble .markdown-italic {
+            font-style: italic;
+            color: #4a5568;
+        }
+
+        .bot-message .message-bubble .markdown-h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            color: #1a202c;
+            margin: 24px 0 16px 0;
+            padding-bottom: 12px;
+            border-bottom: 3px solid #667eea;
+            line-height: 1.2;
+        }
+
+        .bot-message .message-bubble .markdown-h2 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #667eea;
+            margin: 20px 0 12px 0;
+            line-height: 1.3;
+        }
+
+        .bot-message .message-bubble .markdown-h3 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: #4a5568;
+            margin: 16px 0 10px 0;
+            line-height: 1.4;
+        }
+
+        .bot-message .message-bubble .markdown-list {
+            margin: 16px 0;
+            padding-left: 28px;
+            line-height: 1.8;
+        }
+
+        .bot-message .message-bubble .markdown-list li {
+            margin-bottom: 10px;
             position: relative;
         }
 
-        #messageInput {
+        .bot-message .message-bubble .markdown-list li::marker {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .bot-message .message-bubble .markdown-table {
             width: 100%;
-            padding: 15px 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 25px;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 24px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            background: white;
+        }
+
+        .bot-message .message-bubble .markdown-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 16px 18px;
+            text-align: left;
+            border: none;
+        }
+
+        .bot-message .message-bubble .markdown-table td {
+            padding: 14px 18px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+            background: white;
+            transition: background 0.2s;
+        }
+
+        .bot-message .message-bubble .markdown-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .bot-message .message-bubble .markdown-table tr:hover td {
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.05), transparent);
+        }
+
+        .bot-message .message-bubble .markdown-table tr:nth-child(even) td {
+            background: #f8f9fa;
+        }
+
+        .bot-message .message-bubble .markdown-table tr:nth-child(even):hover td {
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.08), rgba(102, 126, 234, 0.02));
+        }
+
+        .bot-message .message-bubble .markdown-code {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: 'Courier New', 'Monaco', monospace;
+            font-size: 13px;
+            color: #e53e3e;
+            border: 1px solid #e2e8f0;
+            font-weight: 600;
+        }
+
+        .bot-message .message-bubble .markdown-quote {
+            border-left: 4px solid #667eea;
+            padding: 16px 20px;
+            margin: 20px 0;
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.05), transparent);
+            border-radius: 0 8px 8px 0;
+            color: #4a5568;
+            font-style: italic;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        /* Options List Styling */
+        .bot-message .message-bubble .options-list {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .bot-message .message-bubble .options-list li {
+            padding: 12px 16px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .bot-message .message-bubble .options-list li:hover {
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.1), white);
+            transform: translateX(4px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Highlight important text */
+        .bot-message .message-bubble .highlight {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        /* Info boxes */
+        .bot-message .message-bubble .info-box {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
+            border-left: 4px solid #667eea;
+            padding: 16px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .bot-message .message-bubble .info-box strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        /* Enhanced paragraph spacing */
+        .bot-message .message-bubble p {
+            margin-bottom: 14px;
+            line-height: 1.8;
+        }
+
+        /* Better list item styling */
+        .bot-message .message-bubble ul li,
+        .bot-message .message-bubble ol li {
+            margin-bottom: 12px;
+            padding-left: 8px;
+        }
+
+        /* Numbered list styling */
+        .bot-message .message-bubble ol {
+            counter-reset: item;
+            padding-left: 0;
+        }
+
+        .bot-message .message-bubble ol li {
+            counter-increment: item;
+            list-style: none;
+            position: relative;
+            padding-left: 32px;
+        }
+
+        .bot-message .message-bubble ol li::before {
+            content: counter(item) ")";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        /* Enhanced text emphasis */
+        .bot-message .message-bubble em {
+            font-style: italic;
+            color: #4a5568;
+            background: rgba(102, 126, 234, 0.05);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        /* Better spacing for sections */
+        .bot-message .message-bubble hr {
+            border: none;
+            border-top: 2px solid #e2e8f0;
+            margin: 24px 0;
+            border-radius: 2px;
+        }
+
+        /* Call-to-action styling */
+        .bot-message .message-bubble .cta {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            text-align: center;
+        }
+
+        .bot-message .message-bubble .cta strong {
+            color: #667eea;
+            font-size: 18px;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        .input-container {
+            padding: 24px 32px;
+            background: white;
+            display: flex;
+            gap: 12px;
+            border-top: 1px solid #e2e8f0;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 16px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
             font-size: 15px;
             outline: none;
-            transition: border-color 0.3s;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s;
+            background: #f8f9fa;
+            resize: vertical;
+            min-height: 50px;
+            max-height: 150px;
+            line-height: 1.6;
+            overflow-y: auto;
         }
 
         #messageInput:focus {
             border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        #messageInput::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #messageInput::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        #messageInput::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
         }
 
         #sendButton {
-            padding: 15px 30px;
+            padding: 16px 32px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 25px;
-            font-size: 15px;
-            font-weight: 600;
+            border-radius: 16px;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
         #sendButton:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
         }
 
         #sendButton:active {
             transform: translateY(0);
         }
 
-        #sendButton:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .typing-indicator {
+        /* Modal Styles */
+        .modal {
             display: none;
-            padding: 15px 20px;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+
+        .modal-content {
             background: white;
-            border-radius: 18px;
-            border: 1px solid #e0e0e0;
-            width: fit-content;
+            margin: 50px auto;
+            padding: 40px;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
         }
 
-        .typing-indicator span {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #667eea;
-            margin: 0 2px;
-            animation: typing 1.4s infinite;
-        }
-
-        .typing-indicator span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-indicator span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes typing {
-            0%, 60%, 100% {
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
                 transform: translateY(0);
             }
-            30% {
-                transform: translateY(-10px);
-            }
         }
 
-        .optimization-result {
-            margin-top: 20px;
-            padding: 20px;
-            background: white;
-            border-radius: 12px;
-            border: 2px solid #667eea;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        .modal-content::-webkit-scrollbar {
+            width: 10px;
         }
 
-        .optimization-result h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 20px;
+        .modal-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
         }
 
-        .fund-weight {
+        .modal-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+        }
+
+        .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px;
-            margin: 8px 0;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #e2e8f0;
         }
 
-        .fund-weight .fund-name {
-            font-weight: 500;
-            color: #333;
-        }
-
-        .fund-weight .fund-weight-value {
-            font-weight: 600;
+        .modal-header h2 {
+            font-family: 'Poppins', sans-serif;
             color: #667eea;
-            font-size: 18px;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
-        .reset-button {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.2);
+        .close {
+            color: #a0aec0;
+            font-size: 32px;
+            font-weight: 300;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close:hover {
+            color: #2d3748;
+            background: #f7fafc;
+        }
+
+        /* Currency Tabs */
+        .currency-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 14px 28px;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #4a5568;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 20px;
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .tab-btn:hover {
+            background: #edf2f7;
+            transform: translateY(-2px);
+        }
+
+        .tab-btn.active:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653a91 100%);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Geography Tabs */
+        .geography-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .geo-btn {
+            padding: 10px 20px;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
             cursor: pointer;
             font-size: 14px;
-            transition: background 0.3s;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            color: #4a5568;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .reset-button:hover {
-            background: rgba(255, 255, 255, 0.3);
+        .geo-btn:hover {
+            background: #edf2f7;
+            transform: translateY(-2px);
         }
 
-        .header {
+        .geo-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Category Buttons */
+        .category-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .category-btn {
+            padding: 10px 20px;
+            background: #ffffff;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            color: #667eea;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .category-btn:hover {
+            background: #f7fafc;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .category-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Funds Grid */
+        .funds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+            padding-bottom: 20px;
+        }
+
+        /* Smooth scroll for touch devices */
+        .funds-grid {
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+
+        /* Touch swipe support */
+        @media (max-width: 768px) {
+            .funds-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .fund-card {
+                touch-action: pan-y;
+            }
+        }
+
+        .fund-card {
+            background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+            animation: fundCardSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fund-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .fund-card:hover::before {
+            left: 100%;
+        }
+
+        @keyframes fundCardSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .fund-card:nth-child(1) { animation-delay: 0.05s; }
+        .fund-card:nth-child(2) { animation-delay: 0.1s; }
+        .fund-card:nth-child(3) { animation-delay: 0.15s; }
+        .fund-card:nth-child(4) { animation-delay: 0.2s; }
+        .fund-card:nth-child(5) { animation-delay: 0.25s; }
+        .fund-card:nth-child(6) { animation-delay: 0.3s; }
+        .fund-card:nth-child(7) { animation-delay: 0.35s; }
+        .fund-card:nth-child(8) { animation-delay: 0.4s; }
+        .fund-card:nth-child(n+9) { animation-delay: 0.45s; }
+
+        .fund-card:hover {
+            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.2);
+            transform: translateY(-6px) scale(1.02);
+            border-color: #667eea;
+        }
+
+        .fund-card:active {
+            transform: translateY(-2px) scale(1);
+        }
+
+        /* Touch controls for mobile */
+        @media (hover: none) and (pointer: coarse) {
+            .fund-card:active {
+                transform: translateY(-4px) scale(1.01);
+                box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+            }
+        }
+
+        .fund-card h3 {
+            font-family: 'Poppins', sans-serif;
+            color: #667eea;
+            margin-bottom: 16px;
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.3;
+            transition: all 0.3s;
+            position: relative;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .fund-card:hover h3 {
+            color: #764ba2;
+            transform: translateX(4px);
+            border-bottom-color: #667eea;
+        }
+
+        .fund-card .fund-detail {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
             position: relative;
         }
 
-        /* Scrollbar styling */
-        .chat-container::-webkit-scrollbar {
-            width: 8px;
+        .fund-card .fund-detail:hover {
+            padding-left: 8px;
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.05), transparent);
+            border-radius: 6px;
         }
 
-        .chat-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
+        .fund-card .fund-detail:last-child {
+            border-bottom: none;
         }
 
-        .chat-container::-webkit-scrollbar-thumb {
-            background: #667eea;
-            border-radius: 4px;
+        .fund-card .fund-detail strong {
+            color: #2d3748;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            transition: color 0.3s;
         }
 
-        .chat-container::-webkit-scrollbar-thumb:hover {
-            background: #764ba2;
+        .fund-card:hover .fund-detail strong {
+            color: #667eea;
         }
 
-        @media (max-width: 768px) {
-            .container {
-                height: 100vh;
-                border-radius: 0;
-            }
+        .fund-card .fund-detail span {
+            color: #4a5568;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
 
-            .message-bubble {
-                max-width: 85%;
-            }
+        .fund-card .fund-detail .value-highlight {
+            font-weight: 700;
+            font-size: 15px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
 
-            .header h1 {
-                font-size: 22px;
-            }
+        .fund-card:hover .fund-detail .value-highlight {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.05);
+        }
+
+        .no-funds {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <button class="reset-button" onclick="resetChat()">Reset Chat</button>
+            <div class="header-content">
             <h1>💰 Mutual Fund Portfolio Advisor</h1>
-            <p>Your AI-powered investment advisor for building diversified portfolios</p>
+                <p>Your AI-powered investment advisor</p>
+            </div>
+            <div class="header-buttons">
+                <button class="header-btn" onclick="openFundsModal()">📊 VIEW FUNDS</button>
+                <button class="header-btn" onclick="resetChat()">🔄 Reset</button>
+            </div>
         </div>
         
         <div class="chat-container" id="chatContainer">
             <div class="chat-message bot-message">
                 <div class="message-bubble">
-                    👋 Hello! I'm your AI portfolio advisor. I'll help you build a diversified mutual fund portfolio tailored to your risk profile and goals.
-                    <br><br>
-                    What are you trying to achieve with your investments? (e.g., growth, stability, tax-saving, etc.)
+                    👋 Hello! I'm your **<strong>Mutual Fund Portfolio Advisor</strong>**. I help you build a diversified mutual fund portfolio tailored to your risk profile and investment goals. I'll guide you through selecting the right funds, optimizing allocations, and creating a portfolio that matches your financial objectives.<br><br>What are you trying to achieve with your investments? (e.g., growth, stability, tax-saving, retirement planning)
                 </div>
             </div>
         </div>
         
         <div class="input-container">
-            <div class="input-wrapper">
-                <input 
-                    type="text" 
-                    id="messageInput" 
-                    placeholder="Type your message here..."
-                    onkeypress="handleKeyPress(event)"
-                >
-            </div>
+            <textarea id="messageInput" placeholder="Type your message here... (Press Enter for new line, Shift+Enter to send)" rows="3"></textarea>
             <button id="sendButton" onclick="sendMessage()">Send</button>
         </div>
+        </div>
         
-        <div class="typing-indicator" id="typingIndicator">
-            <span></span>
-            <span></span>
-            <span></span>
+    <!-- Funds Modal -->
+    <div id="fundsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Available Mutual Funds</h2>
+                <span class="close" onclick="closeFundsModal()">&times;</span>
+            </div>
+            
+            <!-- Currency Tabs -->
+            <div class="currency-tabs">
+                <button class="tab-btn active" onclick="switchCurrency('INR')">🇮🇳 INR Funds</button>
+                <button class="tab-btn" onclick="switchCurrency('USD')">💵 USD Funds</button>
+            </div>
+
+            <!-- Geography Tabs (for USD) -->
+            <div id="geographyTabs" class="geography-tabs" style="display: none;">
+                <button class="geo-btn active" onclick="switchGeography('all')">All Geographies</button>
+                <button class="geo-btn" onclick="switchGeography('USA')">🇺🇸 USA</button>
+                <button class="geo-btn" onclick="switchGeography('India')">🇮🇳 India</button>
+                <button class="geo-btn" onclick="switchGeography('Japan')">🇯🇵 Japan</button>
+                <button class="geo-btn" onclick="switchGeography('Europe')">🇪🇺 Europe</button>
+                <button class="geo-btn" onclick="switchGeography('UK')">🇬🇧 UK</button>
+                <button class="geo-btn" onclick="switchGeography('China')">🇨🇳 China</button>
+            </div>
+
+            <!-- Category Buttons -->
+            <div class="category-buttons">
+                <button class="category-btn active" onclick="switchCategory('all')">All Categories</button>
+                <button class="category-btn" onclick="switchCategory('debt')">💼 Debt</button>
+                <button class="category-btn" onclick="switchCategory('large_cap')">🏢 Large Cap</button>
+                <button class="category-btn" onclick="switchCategory('mid_cap')">🏬 Mid Cap</button>
+                <button class="category-btn" onclick="switchCategory('small_cap')">🏪 Small Cap</button>
+                <button class="category-btn" onclick="switchCategory('balanced')">⚖️ Balanced</button>
+                <button class="category-btn" onclick="switchCategory('tax_saver')">📋 Tax Saver</button>
+            </div>
+
+            <!-- Funds Display -->
+            <div id="fundsDisplay" class="funds-grid">
+                <div class="no-funds">Loading funds...</div>
+            </div>
         </div>
     </div>
 
     <script>
         const API_BASE = window.location.origin;
+        let fundsData = null;
+        let currentCurrency = 'INR';
+        let currentGeography = 'all';
+        let currentCategory = 'all';
 
         function addMessage(content, isUser) {
-            const chatContainer = document.getElementById('chatContainer');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message ${isUser ? 'user-message' : 'bot-message'}`;
+            const container = document.getElementById('chatContainer');
+            const div = document.createElement('div');
+            div.className = `chat-message ${isUser ? 'user-message' : 'bot-message'}`;
             
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble';
-            bubble.innerHTML = content;
-            
-            messageDiv.appendChild(bubble);
-            chatContainer.appendChild(messageDiv);
-            
-            // Scroll to bottom
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Format markdown content
+            const formattedContent = formatMarkdown(content);
+            div.innerHTML = `<div class="message-bubble">${formattedContent}</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
         }
 
-        function showTyping() {
-            const typingIndicator = document.getElementById('typingIndicator');
-            typingIndicator.style.display = 'block';
-            const chatContainer = document.getElementById('chatContainer');
-            chatContainer.appendChild(typingIndicator);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function hideTyping() {
-            const typingIndicator = document.getElementById('typingIndicator');
-            typingIndicator.style.display = 'none';
+        function formatMarkdown(text) {
+            if (!text) return '';
+            
+            // Configure marked options for better formatting
+            if (typeof marked !== 'undefined') {
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true,
+                    headerIds: false,
+                    mangle: false,
+                    pedantic: false,
+                    sanitize: false,
+                    smartLists: true,
+                    smartypants: true
+                });
+                
+                try {
+                    let html = marked.parse(text);
+                    
+                    // Enhance tables with better styling
+                    html = html.replace(/<table>/g, '<table class="markdown-table">');
+                    
+                    // Enhance lists
+                    html = html.replace(/<ul>/g, '<ul class="markdown-list">');
+                    html = html.replace(/<ol>/g, '<ol class="markdown-list">');
+                    
+                    // Enhance code blocks
+                    html = html.replace(/<code>/g, '<code class="markdown-code">');
+                    
+                    // Enhance blockquotes
+                    html = html.replace(/<blockquote>/g, '<blockquote class="markdown-quote">');
+                    
+                    return html;
+                } catch (e) {
+                    console.error('Markdown parsing error:', e);
+                    // Fallback to enhanced simple formatting
+                }
+            }
+            
+            // Enhanced fallback: Better markdown formatting
+            // Convert **bold** to <strong> with class
+            text = text.replace(/\*\*(.+?)\*\*/g, '<strong class="markdown-bold">$1</strong>');
+            
+            // Convert *italic* to <em> (but not if it's part of **bold**)
+            text = text.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em class="markdown-italic">$1</em>');
+            
+            // Convert headers with classes
+            text = text.replace(/^### (.+)$/gm, '<h3 class="markdown-h3">$1</h3>');
+            text = text.replace(/^## (.+)$/gm, '<h2 class="markdown-h2">$1</h2>');
+            text = text.replace(/^# (.+)$/gm, '<h1 class="markdown-h1">$1</h1>');
+            
+            // Convert line breaks
+            text = text.replace(/\n\n/g, '<br><br>');
+            text = text.replace(/\n/g, '<br>');
+            
+            return text;
         }
 
         async function sendMessage() {
             const input = document.getElementById('messageInput');
-            const sendButton = document.getElementById('sendButton');
             const message = input.value.trim();
-            
             if (!message) return;
             
-            // Disable input
-            input.disabled = true;
-            sendButton.disabled = true;
-            
-            // Add user message
             addMessage(message, true);
             input.value = '';
             
-            // Show typing indicator
-            showTyping();
-            
             try {
-                // Send message to backend
                 const response = await fetch(`${API_BASE}/api/chat`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ message: message })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
                 });
-                
                 const data = await response.json();
-                hideTyping();
-                
-                if (data.error) {
-                    addMessage(`❌ Error: ${data.error}`, false);
-                } else {
-                    addMessage(data.response, false);
-                    
-                    // Check if optimization result is already available (from agentic system)
-                    if (data.optimization_result && data.optimization_result.weights) {
-                        const optResult = data.optimization_result;
-                        const state = data.state;
-                        
-                        // Display optimization results
-                        let resultHtml = `
-                            <div class="optimization-result">
-                                <h3>📊 Recommended Portfolio Allocation</h3>
-                                <p style="margin-bottom: 15px; color: #666;">
-                                    Based on your <strong>${state.primary_risk_bucket}</strong> risk profile (${state.sub_risk_bucket}), here's your optimized portfolio:
-                                </p>
-                        `;
-                        
-                        // Sort by weight (descending)
-                        const sortedWeights = Object.entries(optResult.weights)
-                            .sort((a, b) => b[1] - a[1]);
-                        
-                        for (const [fundName, weight] of sortedWeights) {
-                            resultHtml += `
-                                <div class="fund-weight">
-                                    <span class="fund-name">${fundName}</span>
-                                    <span class="fund-weight-value">${weight}%</span>
-                                </div>
-                            `;
-                        }
-                        
-                        resultHtml += `
-                                <p style="margin-top: 15px; color: #666; font-size: 14px;">
-                                    💡 <strong>Next Steps:</strong> You can rebalance quarterly, adjust geography exposure, or modify your risk preferences anytime.
-                                </p>
-                            </div>
-                        `;
-                        
-                        addMessage(resultHtml, false);
-                    } else {
-                        // Fallback: Check if we should trigger optimization manually
-                        const botMsgLower = data.response.toLowerCase();
-                        const shouldOptimize = botMsgLower.includes('optimize') || 
-                                             botMsgLower.includes('generate') || 
-                                             botMsgLower.includes('recommendation') ||
-                                             botMsgLower.includes('here are') ||
-                                             botMsgLower.includes('portfolio') ||
-                                             (botMsgLower.includes('look right') && botMsgLower.includes('yes'));
-                        
-                        const userMsgLower = message.toLowerCase();
-                        const userWantsOptimize = userMsgLower.includes('yes') || 
-                                                  userMsgLower.includes('optimize') ||
-                                                  userMsgLower.includes('generate') ||
-                                                  userMsgLower.includes('proceed');
-                        
-                        const state = data.state;
-                        if ((shouldOptimize || userWantsOptimize) && state && state.currency && state.primary_risk_bucket) {
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                            
-                            const payloadResponse = await fetch(`${API_BASE}/api/get-payload`);
-                            const payload = await payloadResponse.json();
-                            
-                            addMessage('🔄 Optimizing your portfolio... This may take a few seconds.', false);
-                            
-                            const optResponse = await fetch(`${API_BASE}/api/optimize`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify(payload)
-                            });
-                            
-                            const optResult = await optResponse.json();
-                            
-                            if (optResult.error) {
-                                addMessage(`⚠️ Optimization error: ${optResult.error}`, false);
-                            } else if (optResult.weights) {
-                                let resultHtml = `
-                                    <div class="optimization-result">
-                                        <h3>📊 Recommended Portfolio Allocation</h3>
-                                        <p style="margin-bottom: 15px; color: #666;">
-                                            Based on your <strong>${payload.primary_risk_bucket}</strong> risk profile (${payload.sub_risk_bucket}), here's your optimized portfolio:
-                                        </p>
-                                `;
-                                
-                                const sortedWeights = Object.entries(optResult.weights)
-                                    .sort((a, b) => b[1] - a[1]);
-                                
-                                for (const [fundName, weight] of sortedWeights) {
-                                    resultHtml += `
-                                        <div class="fund-weight">
-                                            <span class="fund-name">${fundName}</span>
-                                            <span class="fund-weight-value">${weight}%</span>
-                                        </div>
-                                    `;
-                                }
-                                
-                                resultHtml += `
-                                        <p style="margin-top: 15px; color: #666; font-size: 14px;">
-                                            💡 <strong>Next Steps:</strong> You can rebalance quarterly, adjust geography exposure, or modify your risk preferences anytime.
-                                        </p>
-                                    </div>
-                                `;
-                                
-                                addMessage(resultHtml, false);
-                            }
-                        }
-                    }
-                }
+                addMessage(data.response || data.error, false);
             } catch (error) {
-                hideTyping();
-                addMessage(`❌ Error: ${error.message}`, false);
-            } finally {
-                // Re-enable input
-                input.disabled = false;
-                sendButton.disabled = false;
-                input.focus();
+                addMessage('Error: ' + error.message, false);
             }
         }
 
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
+        async function openFundsModal() {
+            document.getElementById('fundsModal').style.display = 'block';
+                if (!fundsData) {
+                    await loadFunds();
+                }
+            renderFunds();
             }
+
+        function closeFundsModal() {
+            document.getElementById('fundsModal').style.display = 'none';
+        }
+
+        async function loadFunds() {
+            try {
+                const response = await fetch(`${API_BASE}/api/funds`);
+                const data = await response.json();
+                fundsData = data;
+            } catch (error) {
+                console.error('Error loading funds:', error);
+                document.getElementById('fundsDisplay').innerHTML = 
+                    '<div class="no-funds">Error loading funds. Please try again.</div>';
+            }
+        }
+
+        function switchCurrency(currency) {
+            currentCurrency = currency;
+            currentGeography = 'all';
+            currentCategory = 'all';
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide geography tabs
+            const geoTabs = document.getElementById('geographyTabs');
+            if (currency === 'USD') {
+                geoTabs.style.display = 'flex';
+                        } else {
+                geoTabs.style.display = 'none';
+            }
+            
+            // Reset geography and category buttons
+            document.querySelectorAll('.geo-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.geo-btn')[0].classList.add('active');
+            document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.category-btn')[0].classList.add('active');
+            
+            renderFunds();
+        }
+
+        function switchGeography(geography) {
+            currentGeography = geography;
+            document.querySelectorAll('.geo-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderFunds();
+        }
+
+        function switchCategory(category) {
+            currentCategory = category;
+            document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderFunds();
+        }
+
+        function renderFunds() {
+            if (!fundsData) {
+                document.getElementById('fundsDisplay').innerHTML = 
+                    '<div class="no-funds">Loading funds...</div>';
+                return;
+            }
+
+            let filteredFunds = fundsData.funds || [];
+            
+            // Filter by currency
+            filteredFunds = filteredFunds.filter(fund => fund.currency === currentCurrency);
+            
+            // Filter by geography (if USD and not 'all')
+            if (currentCurrency === 'USD' && currentGeography !== 'all') {
+                filteredFunds = filteredFunds.filter(fund => fund.geography === currentGeography);
+            }
+            
+            // Filter by category (if not 'all')
+            if (currentCategory !== 'all') {
+                filteredFunds = filteredFunds.filter(fund => fund.category === currentCategory);
+            }
+
+            const display = document.getElementById('fundsDisplay');
+            
+            if (filteredFunds.length === 0) {
+                display.innerHTML = '<div class="no-funds">No funds found matching the selected filters.</div>';
+                return;
+            }
+
+            // Add loading animation
+            display.style.opacity = '0';
+            setTimeout(() => {
+                display.style.transition = 'opacity 0.3s';
+                display.style.opacity = '1';
+            }, 50);
+
+            display.innerHTML = filteredFunds.map((fund, index) => {
+                // Format max_drawdown to 2 decimal places
+                const maxDrawdown = typeof fund.max_drawdown === 'number' 
+                    ? fund.max_drawdown.toFixed(2) 
+                    : parseFloat(fund.max_drawdown || 0).toFixed(2);
+                
+                // Format returns and volatility
+                const returns = typeof fund.returns === 'number' 
+                    ? fund.returns.toFixed(2) 
+                    : parseFloat(fund.returns || 0).toFixed(2);
+                
+                const volatility = typeof fund.volatility === 'number' 
+                    ? fund.volatility.toFixed(2) 
+                    : parseFloat(fund.volatility || 0).toFixed(2);
+                
+                const sharpeRatio = typeof fund.sharpe_ratio === 'number' 
+                    ? fund.sharpe_ratio.toFixed(2) 
+                    : parseFloat(fund.sharpe_ratio || 0).toFixed(2);
+                
+                return `
+                <div class="fund-card" style="animation-delay: ${index * 0.05}s;">
+                    <h3>${fund.name}</h3>
+                    <div class="fund-detail">
+                        <strong>Category:</strong>
+                        <span class="value-highlight">${fund.category.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                    <div class="fund-detail">
+                        <strong>Currency:</strong>
+                        <span class="value-highlight">${fund.currency}</span>
+                    </div>
+                    ${fund.geography ? `
+                    <div class="fund-detail">
+                        <strong>Geography:</strong>
+                        <span class="value-highlight">${fund.geography}</span>
+                    </div>
+                    ` : ''}
+                    <div class="fund-detail">
+                        <strong>Returns:</strong>
+                        <span class="value-highlight" style="color: #10b981; font-weight: 700;">${returns}%</span>
+                    </div>
+                    <div class="fund-detail">
+                        <strong>Volatility:</strong>
+                        <span class="value-highlight" style="color: #ef4444; font-weight: 700;">${volatility}%</span>
+                    </div>
+                    <div class="fund-detail">
+                        <strong>Max Drawdown:</strong>
+                        <span class="value-highlight" style="color: #f59e0b; font-weight: 700;">${maxDrawdown}%</span>
+                    </div>
+                    <div class="fund-detail">
+                        <strong>Sharpe Ratio:</strong>
+                        <span class="value-highlight" style="color: #667eea; font-weight: 700;">${sharpeRatio}</span>
+                    </div>
+                </div>
+            `;
+            }).join('');
         }
 
         async function resetChat() {
-            if (confirm('Are you sure you want to reset the conversation?')) {
+            if (confirm('Are you sure you want to reset the conversation? This will clear all chat history.')) {
                 try {
                     await fetch(`${API_BASE}/api/reset`, { method: 'POST' });
                     document.getElementById('chatContainer').innerHTML = `
                         <div class="chat-message bot-message">
                             <div class="message-bubble">
-                                👋 Hello! I'm your AI portfolio advisor. I'll help you build a diversified mutual fund portfolio tailored to your risk profile and goals.
-                                <br><br>
-                                What are you trying to achieve with your investments? (e.g., growth, stability, tax-saving, etc.)
-                            </div>
-                        </div>
-                    `;
+                                👋 Hello! I'm your AI portfolio advisor. What are you trying to achieve with your investments?
+                    </div>
+                </div>
+            `;
                 } catch (error) {
                     alert('Error resetting chat: ' + error.message);
                 }
             }
         }
 
-        // Focus input on load
-        document.getElementById('messageInput').focus();
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('fundsModal');
+            if (event.target === modal) {
+                closeFundsModal();
+            }
+        }
+
+        document.getElementById('messageInput').addEventListener('keydown', (e) => {
+            // Send on Enter (without Shift), new line on Shift+Enter
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+            // Shift+Enter allows new line (default behavior)
+        });
+
+        // Load funds on page load
+        loadFunds();
+
+        // Touch controls and swipe gestures for fund cards
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+
+        document.addEventListener('touchstart', function(e) {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, false);
+
+        document.addEventListener('touchend', function(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, false);
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diffX = touchStartX - touchEndX;
+            const diffY = touchStartY - touchEndY;
+
+            // Horizontal swipe (for navigation)
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > swipeThreshold) {
+                if (diffX > 0) {
+                    // Swipe left - could be used for next category
+                } else {
+                    // Swipe right - could be used for previous category
+                }
+            }
+        }
+
+        // Add ripple effect on tap for fund cards
+        document.addEventListener('click', function(e) {
+            const fundCard = e.target.closest('.fund-card');
+            if (fundCard) {
+                const ripple = document.createElement('span');
+                const rect = fundCard.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+                
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.classList.add('ripple');
+                
+                fundCard.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            }
+        });
+
+        // Add ripple animation CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            .fund-card {
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .ripple {
+                position: absolute;
+                border-radius: 50%;
+                background: rgba(102, 126, 234, 0.3);
+                transform: scale(0);
+                animation: ripple-animation 0.6s ease-out;
+                pointer-events: none;
+            }
+            
+            @keyframes ripple-animation {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
-

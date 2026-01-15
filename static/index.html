@@ -589,6 +589,37 @@
             transform: translateY(0);
         }
 
+        #messageInput:disabled {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        #resetButton {
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+            display: none;
+        }
+
+        #resetButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        #resetButton:active {
+            transform: translateY(0);
+        }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -979,6 +1010,7 @@
         <div class="input-container">
             <textarea id="messageInput" placeholder="Type your message here... (Press Enter for new line, Shift+Enter to send)" rows="3"></textarea>
             <button id="sendButton" onclick="sendMessage()">Send</button>
+            <button id="resetButton" onclick="resetChat()" style="display: none;">🔄 Reset Chat</button>
         </div>
         </div>
         
@@ -1103,6 +1135,15 @@
         }
 
         async function sendMessage() {
+            // Check if we should reset after out-of-context message
+            const lastResponse = document.querySelector('.bot-message:last-child');
+            if (lastResponse && lastResponse.textContent.includes('reset the chat in 10 seconds')) {
+                // Wait 10 seconds then reset
+                setTimeout(() => {
+                    resetChat();
+                }, 10000);
+                return;
+            }
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
             if (!message) return;
@@ -1118,6 +1159,27 @@
                 });
                 const data = await response.json();
                 addMessage(data.response || data.error, false);
+                
+                // Check if optimization is complete (thank you message appears)
+                const botResponse = data.response || '';
+                if (botResponse.includes('🙏 Thank You!') || botResponse.includes('Thank you for using the Mutual Fund Portfolio Advisor')) {
+                    // Disable input and show reset button
+                    const input = document.getElementById('messageInput');
+                    const sendButton = document.getElementById('sendButton');
+                    const resetButton = document.getElementById('resetButton');
+                    
+                    input.disabled = true;
+                    input.placeholder = 'Portfolio optimization complete! Click "Reset Chat" to start a new conversation.';
+                    sendButton.style.display = 'none';
+                    resetButton.style.display = 'block';
+                }
+                
+                // Check if we should reset after 10 seconds (out-of-context message)
+                if (data.should_reset) {
+                    setTimeout(() => {
+                        resetChat();
+                    }, 10000);
+                }
             } catch (error) {
                 addMessage('Error: ' + error.message, false);
             }
@@ -1281,19 +1343,37 @@
         }
 
         async function resetChat() {
-            if (confirm('Are you sure you want to reset the conversation? This will clear all chat history.')) {
-                try {
-                    await fetch(`${API_BASE}/api/reset`, { method: 'POST' });
-                    document.getElementById('chatContainer').innerHTML = `
-                        <div class="chat-message bot-message">
-                            <div class="message-bubble">
-                                👋 Hello! I'm your AI portfolio advisor. What are you trying to achieve with your investments?
+            // If already confirmed or called automatically, proceed
+            if (!confirm('Are you sure you want to reset the conversation? This will clear all chat history.')) {
+                return;
+            }
+            
+            try {
+                await fetch(`${API_BASE}/api/reset`, { method: 'POST' });
+                
+                // Clear chat container
+                document.getElementById('chatContainer').innerHTML = `
+                    <div class="chat-message bot-message">
+                        <div class="message-bubble">
+                            👋 Hello! I'm your <strong>Mutual Fund Portfolio Advisor</strong>. I help you build a diversified mutual fund portfolio tailored to your risk profile and investment goals. I'll guide you through selecting the right funds, optimizing allocations, and creating a portfolio that matches your financial objectives.<br><br>
+                            What are you trying to achieve with your investments? (e.g., growth, stability, tax-saving, retirement planning)
+                        </div>
                     </div>
-                </div>
-            `;
-                } catch (error) {
-                    alert('Error resetting chat: ' + error.message);
-                }
+                `;
+                
+                // Re-enable input and show send button
+                const input = document.getElementById('messageInput');
+                const sendButton = document.getElementById('sendButton');
+                const resetButton = document.getElementById('resetButton');
+                
+                input.disabled = false;
+                input.placeholder = 'Type your message here... (Press Enter for new line, Shift+Enter to send)';
+                sendButton.style.display = 'block';
+                resetButton.style.display = 'none';
+                input.value = '';
+                input.focus();
+            } catch (error) {
+                alert('Error resetting chat: ' + error.message);
             }
         }
 

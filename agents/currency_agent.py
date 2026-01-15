@@ -58,6 +58,13 @@ DETAILED RESPONSE REQUIREMENTS:
    - INR: "Great! Since you're investing in INR, we'll focus on India mutual funds. Next, I'll ask about your risk profile..."
    - USD: "Perfect! With USD, you can invest across multiple countries. Let me ask about your geography preferences..."
 
+CRITICAL TAX-SAVING RULE:
+- If user mentions "tax saving", "tax-saving", "tax benefits", "ELSS", "Section 80C", or similar tax-related goals in their initial response:
+  - IMMEDIATELY explain: "For tax-saving mutual funds (ELSS), you need to invest in INR (Indian Rupees) because ELSS funds and Section 80C tax benefits are only available for Indian investments. USD investments do not provide Indian tax benefits."
+  - Guide them to choose INR: "Since you're interested in tax-saving, I recommend investing in INR. This will give you access to ELSS (Equity Linked Savings Scheme) funds that provide Section 80C tax deduction up to ₹1.5 lakh per year."
+  - If they still want USD, explain: "USD investments don't provide Indian tax benefits. If tax-saving is your primary goal, INR is the better choice."
+  - Then proceed with INR currency selection
+
 CRITICAL: Check context first - if currency is already set, skip to next agent immediately. Always provide educational, detailed responses."""
 
     def execute(self, user_message: str, context: Dict) -> Dict[str, Any]:
@@ -80,6 +87,11 @@ CRITICAL: Check context first - if currency is already set, skip to next agent i
                 "next_agent": next_agent
             }
         
+        # Check if user mentioned tax saving in their message
+        user_message_lower = user_message.lower() if user_message else ""
+        tax_saving_keywords = ["tax saving", "tax-saving", "tax benefits", "elss", "section 80c", "tax saver", "tax deduction"]
+        mentions_tax_saving = any(keyword in user_message_lower for keyword in tax_saving_keywords)
+        
         # Build messages with enhanced context and detailed system prompt
         detailed_prompt = """TITLE: Mutual Fund Weighted Portfolio Recommendation Chatbot (Risk-Inferred + Volatility Sub-Buckets)
 
@@ -100,10 +112,21 @@ IMPORTANT BUSINESS RULES:
 
 3) Natural language input only (user can say "mostly equity, some debt" or "max 25% drawdown" etc.).
 
+CRITICAL TAX-SAVING RULE:
+- If user mentions "tax saving", "tax-saving", "tax benefits", "ELSS", "Section 80C", or similar tax-related goals:
+  - IMMEDIATELY explain: "For tax-saving mutual funds (ELSS), you need to invest in INR (Indian Rupees) because ELSS funds and Section 80C tax benefits are only available for Indian investments. USD investments do not provide Indian tax benefits."
+  - Guide them to choose INR: "Since you're interested in tax-saving, I recommend investing in INR. This will give you access to ELSS (Equity Linked Savings Scheme) funds that provide Section 80C tax deduction up to ₹1.5 lakh per year."
+  - If they still want USD, explain: "USD investments don't provide Indian tax benefits. If tax-saving is your primary goal, INR is the better choice."
+  - Then proceed with INR currency selection by calling set_currency tool with "INR"
+
 Keep questions short. Never overwhelm with more than 2 questions in one message.
 Always explain what "volatility" and "drawdown" mean the first time you use them.
 Do subjective questioning and keep interacting with the user naturally.
 Provide detailed, informative responses explaining what each option means."""
+        
+        # Add special instruction if tax saving is mentioned
+        if mentions_tax_saving:
+            detailed_prompt += "\n\nCRITICAL: The user mentioned tax-saving in their message. You MUST guide them to INR and explain that tax-saving (ELSS) funds are only available in INR. Do not ask them to choose - explain why INR is necessary for tax benefits and proceed with INR selection."
         
         messages = self._build_messages_with_context(context, additional_system_prompts=[detailed_prompt])
         messages.append({"role": "user", "content": user_message})

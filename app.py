@@ -37,7 +37,8 @@ def chat():
             response_data = {
                 'response': bot_response.get('response', ''),
                 'state': bot_response.get('state', chatbot.state),
-                'optimization_result': bot_response.get('optimization_result')
+                'optimization_result': bot_response.get('optimization_result'),
+                'should_reset': bot_response.get('should_reset', False)  # Include reset flag
             }
             # Include suggested funds if available
             if 'suggested_funds' in chatbot.state:

@@ -692,12 +692,22 @@ CRITICAL:
     
     def _format_fund_table(self, suggested_funds: Dict) -> str:
         """Format funds in a markdown table with proper formatting."""
-        response = "| Fund Name | Returns | Volatility | Max Drawdown | Geography |\n"
-        response += "|-----------|---------|------------|--------------|----------|\n"
+        response = "| Fund Name | Type | Returns | Volatility | Max Drawdown | Geography |\n"
+        response += "|-----------|------|---------|------------|--------------|----------|\n"
         
         geo_flags = {
             'USA': '🇺🇸', 'India': '🇮🇳', 'Japan': '🇯🇵',
             'Europe': '🇪🇺', 'UK': '🇬🇧', 'China': '🇨🇳'
+        }
+        
+        # Map category to fund type display name
+        category_to_type = {
+            'debt': 'Debt',
+            'large_cap': 'Equity (Large Cap)',
+            'mid_cap': 'Equity (Mid Cap)',
+            'small_cap': 'Equity (Small Cap)',
+            'balanced': 'Balanced',
+            'tax_saver': 'Tax Saver (ELSS)'
         }
         
         for category, funds in suggested_funds.items():
@@ -706,6 +716,9 @@ CRITICAL:
                     geo = fund.get('geography', '')
                     flag = geo_flags.get(geo, '') if geo else ''
                     geo_display = f"{flag} {geo}" if geo else "N/A"
+                    
+                    # Get fund type from category
+                    fund_type = category_to_type.get(category, fund.get('type', 'N/A').title())
                     
                     # Format drawdown to 2 decimal places
                     max_drawdown = fund.get('max_drawdown', 0)
@@ -718,7 +731,7 @@ CRITICAL:
                     returns = f"{fund.get('returns', 0):.2f}" if isinstance(fund.get('returns'), (int, float)) else str(fund.get('returns', 0))
                     volatility = f"{fund.get('volatility', 0):.2f}" if isinstance(fund.get('volatility'), (int, float)) else str(fund.get('volatility', 0))
                     
-                    response += f"| **{fund['name']}** | **{returns}%** | {volatility}% | {max_drawdown}% | {geo_display} |\n"
+                    response += f"| **{fund['name']}** | {fund_type} | **{returns}%** | {volatility}% | {max_drawdown}% | {geo_display} |\n"
         
         return response
 

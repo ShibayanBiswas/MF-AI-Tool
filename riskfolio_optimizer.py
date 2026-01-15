@@ -314,8 +314,11 @@ def risk_folio(
             {'type': 'eq', 'fun': lambda x: np.sum(x) - 1.0},  # Sum to 1
         )
         
-        # Bounds: each weight between 0 and 1
-        bounds = tuple((0, 1) for _ in range(n_assets))
+        # Bounds: each weight between minimum (1% for diversification) and 1
+        # Ensure all funds get at least some allocation for diversification
+        min_weight = 0.01  # 1% minimum per fund
+        max_weight = 0.95  # 95% maximum per fund (to allow some flexibility)
+        bounds = tuple((min_weight, max_weight) for _ in range(n_assets))
         
         # Run optimization based on model type
         if model == "max_sharpe":
@@ -390,21 +393,43 @@ def risk_folio(
         if result.success:
             weights_array = result.x
         else:
-            # If optimization failed, use equal weights
-            weights_array = np.array([1.0 / n_assets] * n_assets)
+            # If optimization failed with 1% minimum, try with 0.5% minimum
+            relaxed_min_weight = 0.005  # 0.5% minimum
+            relaxed_bounds = tuple((relaxed_min_weight, max_weight) for _ in range(n_assets))
+            
+            # Define objective functions (need to be accessible)
+            def negative_sharpe_relaxed(weights):
+                portfolio_return = np.dot(weights, expected_returns)
+                portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+                if portfolio_vol < 1e-6:
+                    return -1000
+                sharpe = (portfolio_return - rf) / portfolio_vol
+                return -sharpe
+            
+            try:
+                relaxed_result = minimize(negative_sharpe_relaxed, x0, method='SLSQP', bounds=relaxed_bounds, constraints=constraints)
+                if relaxed_result.success:
+                    weights_array = relaxed_result.x
+                else:
+                    # Last resort: equal weights with minimum
+                    weights_array = np.array([max(relaxed_min_weight, 1.0 / n_assets)] * n_assets)
+            except:
+                # Fallback to equal weights with minimum
+                weights_array = np.array([max(relaxed_min_weight, 1.0 / n_assets)] * n_assets)
         
-        # Ensure weights are non-negative and sum to 1
-        weights_array = np.maximum(weights_array, 0)  # Ensure non-negative
+        # Ensure weights meet minimum and sum to 1
+        min_allocation = 0.005  # 0.5% minimum per fund
+        weights_array = np.maximum(weights_array, min_allocation)  # Ensure minimum
         weights_array = weights_array / np.sum(weights_array)  # Normalize to sum to 1
         
         # Create weights dictionary
-        # CRITICAL: Include ALL funds, even with small weights, so geography constraints can work
+        # CRITICAL: Include ALL funds with minimum allocation for diversification
         weights_dict = {}
         for idx, weight in enumerate(weights_array):
             if idx < len(fund_names):
-                # Include all weights, even small ones (geography constraints will adjust)
-                if weight > 1e-6:  # Only exclude truly zero weights
-                    weights_dict[fund_names[idx]] = round(float(weight) * 100, 2)
+                # Ensure minimum 0.5% allocation per fund for diversification
+                min_allocation = max(0.005, weight)  # At least 0.5%
+                weights_dict[fund_names[idx]] = round(float(min_allocation) * 100, 2)
         
         # Normalize to 100%
         total = sum(weights_dict.values())

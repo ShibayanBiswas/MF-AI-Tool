@@ -61,9 +61,9 @@ DETAILED RESPONSE REQUIREMENTS:
    
    | Style | Volatility | Risk Level | Focus | Suitable For |
    |-------|------------|------------|-------|--------------|
-   | **1) Very Aggressive (HIGH_HIGH)** | **~50%** | Maximum | High-growth small-cap & mid-cap | Long-term (10+ years), comfortable with swings |
-   | **2) Aggressive (HIGH_MEDIUM)** | **~40%** | High | Mix of mid-cap, small-cap, some large-cap | Growth-oriented (7-10 years) |
-   | **3) Growth but Cautious (HIGH_LOW)** | **~30%** | High with caution | More large-cap, selective mid/small-cap | Growth investors wanting some stability |
+   | **1) Very Aggressive** | **~50%** | Maximum | High-growth small-cap & mid-cap | Long-term (10+ years), comfortable with swings |
+   | **2) Aggressive** | **~40%** | High | Mix of mid-cap, small-cap, some large-cap | Growth-oriented (7-10 years) |
+   | **3) Growth but Cautious** | **~30%** | High with caution | More large-cap, selective mid/small-cap | Growth investors wanting some stability |
    
    Which style feels closest to you? Or tell me your specific max drawdown percentage (e.g., 'I can handle up to 35% drop')."
 
@@ -72,9 +72,9 @@ DETAILED RESPONSE REQUIREMENTS:
    
    | Style | Volatility | Risk Level | Asset Mix | Suitable For |
    |-------|------------|------------|-----------|--------------|
-   | **1) Medium-High (MEDIUM_HIGH)** | **~30%** | Upper medium | 60-70% equity, less debt | Growth with safety net |
-   | **2) Balanced (MEDIUM_MEDIUM)** | **~25%** | True balanced | 50-50 or 60-40 equity/debt | Most investors seeking balance |
-   | **3) Medium-Low (MEDIUM_LOW)** | **~20%** | Lower medium | 40-50% debt, conservative equity | Conservative investors wanting growth |
+   | **1) Medium-High** | **~30%** | Upper medium | 60-70% equity, less debt | Growth with safety net |
+   | **2) Balanced** | **~25%** | True balanced | 50-50 or 60-40 equity/debt | Most investors seeking balance |
+   | **3) Medium-Low** | **~20%** | Lower medium | 40-50% debt, conservative equity | Conservative investors wanting growth |
    
    Which style feels closest? Or tell me your max drawdown percentage."
 
@@ -83,9 +83,9 @@ DETAILED RESPONSE REQUIREMENTS:
    
    | Style | Volatility | Risk Level | Asset Mix | Suitable For |
    |-------|------------|------------|-----------|--------------|
-   | **1) Low-High (LOW_HIGH)** | **~20%** | Upper low | More large-cap, some mid-cap | Conservative wanting equity exposure |
-   | **2) Conservative (LOW_MEDIUM)** | **~15%** | True conservative | Heavy debt, selective large-cap | Risk-averse, near retirement |
-   | **3) Very Conservative (LOW_LOW)** | **~10%** | Maximum safety | Primarily debt, minimal equity | Very risk-averse, short-term goals |
+   | **1) Low-High** | **~20%** | Upper low | More large-cap, some mid-cap | Conservative wanting equity exposure |
+   | **2) Conservative** | **~15%** | True conservative | Heavy debt, selective large-cap | Risk-averse, near retirement |
+   | **3) Very Conservative** | **~10%** | Maximum safety | Primarily debt, minimal equity | Very risk-averse, short-term goals |
    
    Which style feels closest? Or tell me your max drawdown percentage."
 
@@ -97,12 +97,18 @@ DETAILED RESPONSE REQUIREMENTS:
 
 4. Ask user to choose or provide specific volatility/drawdown percentage
 5. Once user responds, call refine_sub_risk tool
+   - **CRITICAL**: If user provides BOTH volatility and drawdown in their message (e.g., "volatility 30% and drawdown 20%", "keep volatility 40% and drawdown to 30%"), 
+     you MUST extract BOTH values and pass BOTH to the refine_sub_risk tool call
+   - Do NOT ignore one value if both are provided
+   - Example: User says "keep volatility 30% and drawdown 20%" → Call tool with volatility_target=30 AND drawdown_target=20
+   - Always extract numeric values from user messages like "30%", "20%", etc.
 6. After setting, explain what this means and return {"next_agent": "optimization"}
 
 CRITICAL: 
 - Always explain what each sub-risk option means in practical terms
 - Help users understand volatility and drawdown with examples
 - Check context - if volatility_target_pct or drawdown_target_pct already set, skip to optimization
+- **MUST extract both volatility and drawdown if user provides both in their message**
 - Provide educational, detailed responses"""
 
     def execute(self, user_message: str, context: Dict) -> Dict[str, Any]:
@@ -135,7 +141,9 @@ IMPORTANT BUSINESS RULES:
 3) Volatility vs Drawdown:
    - Volatility: How much portfolio value swings up and down (expressed as %)
    - Drawdown: Maximum peak-to-bottom temporary drop (expressed as %)
-   - Prefer drawdown if user provides it, otherwise use volatility
+   - If user provides BOTH volatility and drawdown, extract BOTH values and set both in the tool call
+   - If user provides only one, use that one
+   - CRITICAL: When user says "volatility X% and drawdown Y%", you MUST extract both values and pass both to the tool
 
 Keep questions short. Never overwhelm with more than 2 questions in one message.
 Always explain what volatility and drawdown mean with examples.
@@ -156,13 +164,14 @@ Provide detailed, informative responses explaining what each sub-risk option mea
                     
                     context["sub_risk_bucket"] = sub_risk
                     
-                    # Set volatility/drawdown
+                    # Set volatility/drawdown - handle both if provided
                     if args.get("volatility_target"):
                         context["volatility_target_pct"] = max(5, min(50, args["volatility_target"]))
-                    elif args.get("drawdown_target"):
+                    if args.get("drawdown_target"):
                         context["drawdown_target_pct"] = max(5, min(50, args["drawdown_target"]))
-                    else:
-                        # Set defaults based on sub_risk
+                    
+                    # If neither provided, set defaults based on sub_risk
+                    if not context.get("volatility_target_pct") and not context.get("drawdown_target_pct"):
                         defaults = {
                             "HIGH_HIGH": 50, "HIGH_MEDIUM": 40, "HIGH_LOW": 30,
                             "MEDIUM_HIGH": 30, "MEDIUM_MEDIUM": 25, "MEDIUM_LOW": 20,

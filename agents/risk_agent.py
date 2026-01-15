@@ -238,6 +238,63 @@ CRITICAL AUTOMATIC PROGRESSION RULES:
                     # Set default fund counts
                     self._set_default_fund_counts(context, primary_risk)
                     
+                    # If tax saving was mentioned and currency is INR, set tax_saver_target_pct to 50%
+                    # and adjust fund counts to include 5 tax saver funds (50% of 10 funds)
+                    if context.get("currency") == "INR":
+                        # Check conversation history for tax saving mentions
+                        tax_saving_keywords = ["tax saving", "tax-saving", "tax benefits", "elss", "section 80c", "tax saver", "tax deduction"]
+                        conversation_text = " ".join([msg.get("content", "") for msg in context.get("conversation_history", [])]).lower()
+                        mentions_tax_saving = any(keyword in conversation_text for keyword in tax_saving_keywords)
+                        
+                        if mentions_tax_saving:
+                            context["tax_saver_target_pct"] = 50.0
+                            # Adjust fund counts: 5 tax saver funds out of 10 total
+                            # So: 5 tax saver + 5 others (distributed across other categories)
+                            current_counts = context.get("fund_counts", {})
+                            
+                            # Calculate how many funds we need from other categories (5 total)
+                            # Distribute the 5 funds across other categories proportionally
+                            other_categories = {k: v for k, v in current_counts.items() if k != "tax_saver" and v > 0}
+                            total_others_needed = 5
+                            
+                            if len(other_categories) > 0:
+                                # Distribute 5 funds across other categories
+                                # Give at least 1 to each category, then distribute remaining
+                                num_categories = len(other_categories)
+                                if num_categories <= 5:
+                                    # Give 1 to each category, then distribute remaining
+                                    for i, category in enumerate(other_categories.keys()):
+                                        if i < total_others_needed:
+                                            context["fund_counts"][category] = 1
+                                        else:
+                                            context["fund_counts"][category] = 0
+                                    
+                                    # Distribute remaining funds to largest categories
+                                    remaining = total_others_needed - min(num_categories, total_others_needed)
+                                    if remaining > 0:
+                                        sorted_cats = sorted(other_categories.items(), key=lambda x: x[1], reverse=True)
+                                        for i, (cat, _) in enumerate(sorted_cats[:remaining]):
+                                            context["fund_counts"][cat] += 1
+                                else:
+                                    # More categories than needed - give to top 5
+                                    sorted_cats = sorted(other_categories.items(), key=lambda x: x[1], reverse=True)
+                                    for i, (cat, _) in enumerate(sorted_cats[:5]):
+                                        context["fund_counts"][cat] = 1
+                                    for cat, _ in sorted_cats[5:]:
+                                        context["fund_counts"][cat] = 0
+                            
+                            # Set tax saver to 5 funds
+                            context["fund_counts"]["tax_saver"] = 5
+                            
+                            # Ensure total is exactly 10
+                            total = sum(context["fund_counts"].values())
+                            if total != 10:
+                                # Adjust the largest non-tax-saver category
+                                non_tax_cats = {k: v for k, v in context["fund_counts"].items() if k != "tax_saver" and v > 0}
+                                if non_tax_cats:
+                                    largest_cat = max(non_tax_cats.items(), key=lambda x: x[1])
+                                    context["fund_counts"][largest_cat[0]] += (10 - total)
+                    
                     # Save to database
                     if self.db:
                         try:

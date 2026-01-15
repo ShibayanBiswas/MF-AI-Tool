@@ -175,7 +175,8 @@ class CoordinatorAgent:
             "response": result.get("response", ""),
             "state": self.context,
             "optimization_result": result.get("optimization_result"),
-            "suggested_funds": self.context.get("suggested_funds", {})
+            "suggested_funds": self.context.get("suggested_funds", {}),
+            "should_reset": result.get("should_reset", False)  # Pass through reset flag
         }
     
     def _determine_current_agent(self):

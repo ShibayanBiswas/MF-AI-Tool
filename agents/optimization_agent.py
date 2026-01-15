@@ -99,6 +99,27 @@ CRITICAL:
 - Provide educational, informative responses throughout"""
 
     def execute(self, user_message: str, context: Dict) -> Dict[str, Any]:
+        # CRITICAL: If optimization is already complete, don't show summary again
+        # Instead, show the optimization results or handle out-of-context messages
+        if context.get("_optimization_complete"):
+            # Check if message is out of context (not related to portfolio/investment)
+            out_of_context_keywords = ["vibgyor", "python code", "weather", "recipe", "joke", "story", "poem", "song", "movie", "music", "color", "rainbow"]
+            investment_keywords = ["portfolio", "fund", "investment", "risk", "return", "allocation", "optimize", "rebalance", "weight", "volatility", "drawdown", "mutual", "equity", "debt"]
+            user_lower = user_message.lower()
+            is_out_of_context = any(keyword in user_lower for keyword in out_of_context_keywords) and \
+                              not any(inv_keyword in user_lower for inv_keyword in investment_keywords)
+            
+            if is_out_of_context:
+                return {
+                    "response": "⚠️ **Disclaimer**: I'm a Mutual Fund Portfolio Advisor focused on helping you build investment portfolios. Your question seems unrelated to portfolio management. I'll reset the chat in 10 seconds to start fresh. If you'd like to create a new portfolio or ask about investments, please start a new conversation.",
+                    "updated_context": context,
+                    "next_agent": None,
+                    "should_reset": True  # Flag for frontend to reset after 10 seconds
+                }
+            else:
+                # Show optimization results again instead of summary
+                return self._show_optimization_results(context)
+        
         # Build messages with enhanced context and detailed system prompt
         detailed_prompt = """TITLE: Mutual Fund Weighted Portfolio Recommendation Chatbot (Risk-Inferred + Volatility Sub-Buckets)
 
@@ -325,7 +346,16 @@ Provide detailed, informative responses explaining portfolio characteristics."""
             response += "| 1️⃣ Review | Review the weights - These are recommendations based on optimization |\n"
             response += "| 2️⃣ Rebalance | Consider rebalancing - Review annually to maintain your target allocation |\n"
             response += "| 3️⃣ Monitor | Monitor performance - Track how your portfolio performs over time |\n"
-            response += "| 4️⃣ Adjust | Adjust if needed - You can modify allocations based on changing goals or risk tolerance |\n"
+            response += "| 4️⃣ Adjust | Adjust if needed - You can modify allocations based on changing goals or risk tolerance |\n\n"
+            
+            # Add thank you message
+            response += "### 🙏 Thank You!\n\n"
+            response += "Thank you for using the Mutual Fund Portfolio Advisor! Your optimized portfolio is ready. "
+            response += "Remember to review your portfolio periodically and rebalance as needed to stay aligned with your investment goals. "
+            response += "If you have any questions or need to create a new portfolio, feel free to start a new conversation. 📊✨\n"
+            
+            # Mark that optimization is complete
+            context["_optimization_complete"] = True
             
             return {
                 "response": response,
@@ -339,6 +369,37 @@ Provide detailed, informative responses explaining portfolio characteristics."""
                 "updated_context": context,
                 "next_agent": None
             }
+    
+    def _show_optimization_results(self, context: Dict) -> Dict[str, Any]:
+        """Show optimization results when optimization is already complete."""
+        # Get the last optimization result from context
+        suggested_funds = context.get("suggested_funds", {})
+        fund_counts = context.get("fund_counts", {})
+        
+        response = "## 📊 Your Optimized Portfolio\n\n"
+        response += "Your portfolio optimization is complete! Here's a summary of your portfolio:\n\n"
+        
+        response += "### 📊 Fund Allocation by Category\n\n"
+        response += "| Category | Number of Funds |\n"
+        response += "|----------|-----------------|\n"
+        
+        total_funds = 0
+        for category, count in fund_counts.items():
+            if count and count > 0:
+                category_name = category.replace("_", " ").title()
+                actual_funds = suggested_funds.get(category, [])
+                actual_count = len(actual_funds)
+                total_funds += actual_count
+                response += f"| {category_name} | {actual_count} fund{'s' if actual_count != 1 else ''} |\n"
+        
+        response += f"\n### 📦 Total: {total_funds} funds in your portfolio\n\n"
+        response += "💡 If you'd like to see the detailed optimization results again or create a new portfolio, please let me know!\n"
+        
+        return {
+            "response": response,
+            "updated_context": context,
+            "next_agent": None
+        }
     
     def _build_optimization_summary(self, context: Dict) -> str:
         """Build a comprehensive summary with detailed explanations and ask if user wants to optimize."""
@@ -387,10 +448,25 @@ Provide detailed, informative responses explaining portfolio characteristics."""
             summary += "### 🌍 Geography: India only\n"
             summary += "  → 🇮🇳 All investments will be in Indian mutual funds, providing exposure to India's growing economy.\n\n"
         
-        # Risk with detailed explanation
+        # Risk with detailed explanation - use friendly names instead of technical labels
         primary_risk = context.get('primary_risk_bucket', 'N/A')
         sub_risk = context.get('sub_risk_bucket', 'N/A')
-        summary += f"### 🎯 Risk Profile: {primary_risk} - {sub_risk}\n"
+        
+        # Map technical sub-risk labels to friendly names
+        friendly_names = {
+            "LOW_LOW": "Very Conservative (Maximum Safety)",
+            "LOW_MEDIUM": "Conservative (Low Risk)",
+            "LOW_HIGH": "Low Risk with Some Growth Tilt",
+            "MEDIUM_LOW": "Balanced but Cautious",
+            "MEDIUM_MEDIUM": "Balanced Growth Style",
+            "MEDIUM_HIGH": "Growth-Oriented Balanced",
+            "HIGH_LOW": "Growth with Some Safety",
+            "HIGH_MEDIUM": "Aggressive Growth",
+            "HIGH_HIGH": "Very Aggressive / High Growth"
+        }
+        friendly_sub_risk = friendly_names.get(sub_risk, sub_risk.replace('_', ' ').title() if sub_risk != 'N/A' else 'N/A')
+        
+        summary += f"### 🎯 Risk Profile: {primary_risk} - {friendly_sub_risk}\n"
         risk_explanations = {
             "LOW": "🛡️ Conservative approach prioritizing stability and capital preservation",
             "MEDIUM": "⚖️ Balanced approach seeking moderate growth with some stability",
